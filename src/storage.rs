@@ -60,8 +60,8 @@ impl<T: Serialize + for<'de> Deserialize<'de>> File<T> {
         Ok(())
     }
 
-    pub fn get_records(&self) -> &Vec<Record<T>> {
-        &self.records
+    pub fn get_records(self) -> Vec<Record<T>> {
+        self.records
     }
 
     pub fn add_record(&mut self, record: Record<T>) {

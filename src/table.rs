@@ -29,6 +29,9 @@ impl Cell {
     pub fn new(data: Data) -> Self {
         Self { data }
     }
+    pub fn data(&self) -> &Data {
+        &self.data
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -40,6 +43,9 @@ pub struct Column {
 impl Column {
     pub fn new(name: String, datatype: Data) -> Self {
         Self { name, datatype }
+    }
+    pub fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -59,6 +65,10 @@ impl Table {
             columns,
             rows: Vec::new(),
         }
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
     }
 
     pub fn get_columns(&self) -> &Vec<Column> {
@@ -86,18 +96,16 @@ impl Table {
         Ok(())
     }
 
-    pub fn find(&self, column: &Column, value: &Data, limit: Option<usize>) -> Option<Vec<&Row>> {
+    pub fn find(
+        &self,
+        condition: impl Fn(&Row, &Vec<Column>) -> bool,
+        limit: Option<usize>,
+    ) -> Option<Vec<&Row>> {
         let limit = limit.unwrap_or(1);
-        let column_index = self
-            .columns
-            .iter()
-            .position(|c| c.name == column.name)
-            .expect("Column not found");
 
         let mut results = Vec::new();
         for row in &self.rows {
-            let cell = &row[column_index];
-            if &cell.data == value {
+            if condition(row, &self.columns) {
                 results.push(row);
             }
             if results.len() >= limit {

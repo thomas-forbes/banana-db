@@ -1,6 +1,6 @@
 use crate::bql::ast::{Query, Where};
 use crate::bql::{ast, parser};
-use crate::table::{Cell, Column, Data, Row, Table};
+use crate::table::{self, Cell, Column, Data, Row, Table};
 
 use crate::storage::{self, File, Record, RecordType};
 
@@ -91,14 +91,11 @@ impl Engine {
                     None => panic!("Invalid field name"),
                 };
 
-                match row[column_index].data() {
-                    Data::Int(v) => match v {
-                        Some(v) => *v == statement.value,
-                        None => false,
-                    },
-                    // TODO: handle more datatypes
-                    _ => false,
-                }
+                let row_value = row[column_index].data();
+                let where_value = table::Data::Int(Some(statement.value));
+
+                return row_value
+                    .operator_compare(&where_value, statement.comparison_operator.token_type());
             }
             None => true,
         }

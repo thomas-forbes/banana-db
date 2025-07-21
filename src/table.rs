@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+use crate::bql::token::{Token, TokenType};
+
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone, PartialOrd)]
 pub enum Data {
     Int(Option<i64>),
     Float(Option<f64>),
@@ -9,13 +11,27 @@ pub enum Data {
 }
 
 impl Data {
-    fn same_type(&self, other: &Self) -> bool {
+    pub fn same_type(&self, other: &Self) -> bool {
         match (self, other) {
             (Data::Int(_), Data::Int(_)) => true,
             (Data::Float(_), Data::Float(_)) => true,
             (Data::String(_), Data::String(_)) => true,
             (Data::Boolean(_), Data::Boolean(_)) => true,
             _ => false,
+        }
+    }
+    pub fn operator_compare(&self, other_data: &Data, comparison_operator: &TokenType) -> bool {
+        match comparison_operator {
+            TokenType::Equals => self == other_data,
+            TokenType::NotEquals => self != other_data,
+            TokenType::Less => self < other_data,
+            TokenType::LessEquals => self <= other_data,
+            TokenType::Greater => self > other_data,
+            TokenType::GreaterEquals => self >= other_data,
+            _ => panic!(
+                "Invalid token `{:?}` passed to `operator_compare`",
+                comparison_operator
+            ),
         }
     }
 }

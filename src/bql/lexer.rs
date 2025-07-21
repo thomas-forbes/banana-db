@@ -2,7 +2,6 @@ use crate::bql::token::{self, Token, TokenType};
 use std::{iter::Peekable, str::CharIndices};
 
 pub struct Lexer<'a> {
-    input: &'a str,
     chars: Peekable<CharIndices<'a>>,
     current_char: Option<char>,
 }
@@ -10,7 +9,6 @@ pub struct Lexer<'a> {
 impl Lexer<'_> {
     pub fn new<'a>(input: &'a str) -> Lexer<'a> {
         let mut lexer: Lexer<'a> = Lexer {
-            input,
             chars: input.char_indices().peekable(),
             current_char: None,
         };
@@ -44,6 +42,26 @@ impl Lexer<'_> {
                     Ok(Token::new(TokenType::NotEquals, "!=".to_owned()))
                 } else {
                     Err("Expected '=' after '!'".to_owned())
+                }
+            }
+            '<' => {
+                if let Some(next_c) = self.peek()
+                    && next_c == '='
+                {
+                    self.read_next_char();
+                    Ok(Token::new(TokenType::LessEquals, "<=".to_owned()))
+                } else {
+                    Ok(Token::new(TokenType::Less, "<".to_owned()))
+                }
+            }
+            '>' => {
+                if let Some(next_c) = self.peek()
+                    && next_c == '='
+                {
+                    self.read_next_char();
+                    Ok(Token::new(TokenType::GreaterEquals, "<=".to_owned()))
+                } else {
+                    Ok(Token::new(TokenType::Greater, ">".to_owned()))
                 }
             }
             '.' => Ok(Token::new(TokenType::Period, ".".to_owned())),

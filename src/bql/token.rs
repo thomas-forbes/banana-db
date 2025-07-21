@@ -10,8 +10,10 @@ pub enum TokenType {
     // comparison
     Equals,
     NotEquals,
-    // Less,
-    // Greater,
+    Less,
+    LessEquals,
+    Greater,
+    GreaterEquals,
 
     // identifiers
     Identifier,

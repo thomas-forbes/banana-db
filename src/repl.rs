@@ -27,6 +27,9 @@ pub fn start() {
         let file: storage::File<Table> = storage::File::open("db.bin".to_string());
         let engine = Engine::new(file);
 
-        engine.handle_query(query);
+        match engine.handle_query(query) {
+            Ok(rows) => println!("{:?}", rows),
+            Err(error) => eprintln!("{}", error),
+        }
     }
 }

@@ -86,6 +86,8 @@ impl Parser<'_> {
             .parse()
             .expect("`parse_integer` should only be called on `TokenType::Integer`")
     }
+
+    // GIMME
     fn parse_gimme(&mut self) -> Gimme {
         if let Some(_) = self.expect_peek(TokenType::Identifier) {
             let identifier = self.parse_identifier();
@@ -147,5 +149,4 @@ impl Parser<'_> {
             value,
         };
     }
-    fn parse_condition() {}
 }

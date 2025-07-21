@@ -116,19 +116,19 @@ impl Table {
         &self,
         condition: impl Fn(&Row, &Vec<Column>) -> bool,
         limit: Option<usize>,
-    ) -> Option<Vec<&Row>> {
+    ) -> Vec<&Row> {
         let limit = limit.unwrap_or(1);
 
         let mut results = Vec::new();
         for row in &self.rows {
-            if condition(row, &self.columns) {
-                results.push(row);
-            }
             if results.len() >= limit {
                 break;
             }
+            if condition(row, &self.columns) {
+                results.push(row);
+            }
         }
 
-        return Some(results);
+        return results;
     }
 }

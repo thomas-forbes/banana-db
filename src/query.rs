@@ -55,19 +55,17 @@ impl Engine {
         self.tables.iter().find(|&table| table.name() == &name)
     }
 
-    pub fn handle_query(&self, query: Query) {
+    pub fn handle_query(&self, query: Query) -> Result<Vec<&Row>, String> {
         match query {
-            Query::Gimme(gimme) => {
-                println!("{:?}", self.gimme(gimme));
-            }
+            Query::Gimme(gimme) => self.gimme(gimme),
         }
     }
 
     // GIMME
-    fn gimme(&self, gimme: ast::Gimme) -> Option<Vec<&Row>> {
+    fn gimme(&self, gimme: ast::Gimme) -> Result<Vec<&Row>, String> {
         let table = match self.get_table_by_name(gimme.table_identifier.value) {
             Some(t) => t,
-            None => panic!("TODO"),
+            None => return Err("Table not found".to_owned()),
         };
         let limit_number = match gimme.limit_statement {
             Some(l) => Some(l.number),
@@ -76,7 +74,7 @@ impl Engine {
 
         let condition = Engine::get_condition_fn_from_where(gimme.where_statement);
 
-        return table.find(condition, limit_number);
+        return Ok(table.find(condition, limit_number));
     }
     fn get_condition_fn_from_where(
         where_statement: Option<ast::Where>,

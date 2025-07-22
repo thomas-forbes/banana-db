@@ -3,7 +3,12 @@ use crate::bql::token::{Token, TokenType};
 #[derive(Debug)]
 pub enum Query {
     Gimme(Gimme),
+    Tables(Tables),
+    NewTable(NewTable),
+    DeleteTable(DeleteTable),
 }
+
+// TODO: remove pub from fields
 
 #[derive(Debug, Clone)]
 pub struct Identifier {
@@ -30,4 +35,27 @@ pub struct Where {
     pub comparison_operator: Token,
 }
 
-// struct Insert {}
+#[derive(Debug, Clone)]
+pub struct Insert {}
+
+#[derive(Debug, Clone)]
+pub struct Tables {}
+
+#[derive(Debug, Clone)]
+pub struct NewTable {
+    pub identifier: Identifier,
+    pub fields: Map,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeleteTable {
+    pub identifier: Identifier,
+}
+
+#[derive(Debug, Clone)]
+pub struct MapItem {
+    pub key: Identifier,
+    pub value: Token,
+}
+
+pub type Map = Vec<MapItem>;

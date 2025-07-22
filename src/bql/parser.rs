@@ -1,5 +1,3 @@
-use std::{process::id, thread::panicking};
-
 use crate::bql::{
     ast::*,
     lexer::Lexer,
@@ -63,11 +61,15 @@ impl Parser<'_> {
         match &self.current_token {
             Some(token) => match token.token_type() {
                 TokenType::Gimme => Some(Query::Gimme(self.parse_gimme())),
+                TokenType::Tables => Some(Query::Tables(self.parse_tables())),
+                TokenType::New => Some(Query::NewTable(self.parse_new_table())),
+                TokenType::Delete => Some(Query::DeleteTable(self.parse_delete_table())),
                 _ => panic!("Invalid start of statement. Must be `gimme` or `insert`"),
             },
             None => None,
         }
     }
+
     fn parse_identifier(&self) -> Identifier {
         Identifier {
             value: self
@@ -85,6 +87,30 @@ impl Parser<'_> {
             .literal()
             .parse()
             .expect("`parse_integer` should only be called on `TokenType::Integer`")
+    }
+    fn parse_map(&mut self) -> Map {
+        let mut map = Vec::new();
+        if self.current_token_is(TokenType::LeftBrace).is_some() {
+            self.next_token();
+        } else {
+            panic!("Called `parse_map` on invalid token");
+        }
+        while self.current_token_is(TokenType::RightBrace).is_none() {
+            let key = self.parse_identifier();
+            if self.expect_peek(TokenType::Colon).is_none() {
+                panic!("Colon must follow key identifier");
+            }
+            self.next_token();
+
+            let value = match &self.current_token {
+                Some(ct) => ct,
+                None => panic!("Missing value in map"),
+            }
+            .clone();
+            self.next_token();
+            map.push(MapItem { key, value });
+        }
+        return map;
     }
 
     // GIMME
@@ -148,5 +174,37 @@ impl Parser<'_> {
             comparison_operator,
             value,
         };
+    }
+
+    // TABLES
+    fn parse_tables(&mut self) -> Tables {
+        Tables {}
+    }
+    fn parse_new_table(&mut self) -> NewTable {
+        if self.expect_peek(TokenType::Table).is_none() {
+            panic!("`table` expected after `delete`");
+        }
+
+        if self.expect_peek(TokenType::Identifier).is_none() {
+            panic!("Identifier expected after `new table`");
+        }
+        let identifier = self.parse_identifier();
+
+        if self.expect_peek(TokenType::LeftBrace).is_none() {
+            panic!("Field map expected during table creation");
+        }
+        let fields = self.parse_map();
+        NewTable { identifier, fields }
+    }
+    fn parse_delete_table(&mut self) -> DeleteTable {
+        if self.expect_peek(TokenType::Table).is_none() {
+            panic!("`table` expected after `delete`");
+        }
+        if self.expect_peek(TokenType::Identifier).is_none() {
+            panic!("Identifier expected after `delete table`");
+        }
+        let identifier = self.parse_identifier();
+
+        DeleteTable { identifier }
     }
 }

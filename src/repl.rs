@@ -4,7 +4,6 @@ use crate::{
     bql::{lexer::Lexer, parser::Parser},
     query::Engine,
     storage,
-    table::Table,
 };
 
 pub fn start() {
@@ -24,11 +23,12 @@ pub fn start() {
                 continue;
             }
         };
-        let file: storage::File<Table> = storage::File::open("db.bin".to_string());
-        let engine = Engine::new(file);
+
+        let file = storage::File::open("db.bin".to_string());
+        let mut engine = Engine::new(file);
 
         match engine.handle_query(query) {
-            Ok(rows) => println!("{:?}", rows),
+            Ok(out) => println!("{}", out),
             Err(error) => eprintln!("{}", error),
         }
     }

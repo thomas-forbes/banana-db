@@ -1,6 +1,9 @@
-use serde::{Deserialize, Serialize};
+use std::{borrow::Cow, fmt::Display};
 
-use crate::bql::token::{Token, TokenType};
+use serde::{Deserialize, Serialize};
+use tabled::Tabled;
+
+use crate::bql::token::TokenType;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone, PartialOrd)]
 pub enum Data {
@@ -11,6 +14,15 @@ pub enum Data {
 }
 
 impl Data {
+    pub fn from_token_type(token_type: &TokenType) -> Option<Self> {
+        match token_type {
+            TokenType::BooleanWord => Some(Data::Boolean(None)),
+            TokenType::IntWord => Some(Data::Int(None)),
+            TokenType::FloatWord => Some(Data::Float(None)),
+            TokenType::StringWord => Some(Data::String(None)),
+            _ => None,
+        }
+    }
     pub fn same_type(&self, other: &Self) -> bool {
         match (self, other) {
             (Data::Int(_), Data::Int(_)) => true,
@@ -36,6 +48,12 @@ impl Data {
     }
 }
 
+impl Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct Cell {
     data: Data,
@@ -47,6 +65,12 @@ impl Cell {
     }
     pub fn data(&self) -> &Data {
         &self.data
+    }
+}
+
+impl Display for Cell {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.data)
     }
 }
 
@@ -65,13 +89,70 @@ impl Column {
     }
 }
 
-pub type Row = Vec<Cell>;
+impl Display for Column {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "`{}`: {}", self.name, self.datatype)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Row {
+    pub values: Vec<Cell>,
+}
+
+// TODO: improve
+impl Tabled for Row {
+    const LENGTH: usize = 1;
+
+    fn fields(&self) -> Vec<Cow<'_, str>> {
+        self.values
+            .iter()
+            .map(|c| Cow::Owned(c.to_string()))
+            .collect()
+    }
+
+    fn headers() -> Vec<Cow<'static, str>> {
+        vec![Cow::Borrowed("value")]
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Table {
     name: String,
     columns: Vec<Column>,
     rows: Vec<Row>,
+}
+
+impl Display for Table {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", tabled::Table::new(vec![self]))
+    }
+}
+
+impl Tabled for Table {
+    const LENGTH: usize = 3;
+
+    fn fields(&self) -> Vec<Cow<'_, str>> {
+        vec![
+            Cow::Borrowed(&self.name),
+            Cow::Owned(
+                self.columns
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ),
+            Cow::Owned(format!("{}", self.rows.len())),
+        ]
+    }
+
+    fn headers() -> Vec<Cow<'static, str>> {
+        vec![
+            Cow::Borrowed("name"),
+            Cow::Borrowed("columns"),
+            Cow::Borrowed("# rows"),
+        ]
+    }
 }
 
 impl Table {
@@ -98,11 +179,11 @@ impl Table {
     }
 
     pub fn insert(&mut self, row: Row) -> Result<(), Box<dyn std::error::Error>> {
-        if row.len() != self.columns.len() {
+        if row.values.len() != self.columns.len() {
             return Err("Row length does not match number of columns".into());
         }
 
-        for (i, cell) in row.iter().enumerate() {
+        for (i, cell) in row.values.iter().enumerate() {
             if !cell.data.same_type(&self.columns[i].datatype) {
                 return Err("Cell datatype does not match column datatype".into());
             }

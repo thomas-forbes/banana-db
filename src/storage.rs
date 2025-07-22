@@ -1,7 +1,8 @@
+use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, OpenOptions},
-    io::{Read, Write},
+    io::{Read, Seek, SeekFrom, Write},
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -15,34 +16,39 @@ pub struct Record<T: Serialize> {
     pub data: T,
 }
 
-impl<T: Serialize> Record<T> {
+impl<T: Serialize + Clone> Record<T> {
     pub fn new(record_type: RecordType, data: T) -> Self {
         Self { record_type, data }
     }
+    pub fn from_vec(objects: &Vec<T>) -> Vec<Self> {
+        objects
+            .iter()
+            .map(|obj| Self::new(RecordType::Table, obj.clone()))
+            .collect()
+    }
 }
 
-pub struct File<T: Serialize> {
+pub struct File {
     file: fs::File,
-    records: Vec<Record<T>>,
 }
 
-impl<T: Serialize + for<'de> Deserialize<'de>> File<T> {
+impl File {
     pub fn open(path: String) -> Self {
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .open(path)
             .expect("Failed to open database file");
 
-        let records = Self::load_records(&mut file).expect("Failed to read records");
-
-        Self { file, records }
+        Self { file }
     }
 
-    fn load_records(file: &mut fs::File) -> Result<Vec<Record<T>>, Box<dyn std::error::Error>> {
+    pub fn load_records<T: fmt::Debug + Serialize + for<'de> Deserialize<'de>>(
+        &mut self,
+    ) -> Result<Vec<Record<T>>, Box<dyn std::error::Error>> {
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
+        self.file.read_to_end(&mut buffer)?;
 
         if buffer.is_empty() {
             return Ok(Vec::new());
@@ -53,19 +59,17 @@ impl<T: Serialize + for<'de> Deserialize<'de>> File<T> {
         Ok(records)
     }
 
-    fn flush_records(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_records<T: Serialize>(
+        &mut self,
+        records: Vec<Record<T>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let config = bincode::config::standard();
-        let encoded = bincode::serde::encode_to_vec(&self.records, config)?;
+        let encoded = bincode::serde::encode_to_vec(&records, config)?;
+
+        self.file.seek(SeekFrom::Start(0))?;
         self.file.write_all(&encoded)?;
+        self.file.set_len(encoded.len() as u64)?;
+
         Ok(())
-    }
-
-    pub fn get_records(self) -> Vec<Record<T>> {
-        self.records
-    }
-
-    pub fn add_record(&mut self, record: Record<T>) {
-        self.records.push(record);
-        self.flush_records().unwrap();
     }
 }

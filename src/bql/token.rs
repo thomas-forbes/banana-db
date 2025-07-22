@@ -1,11 +1,24 @@
 #[derive(Clone, PartialEq, Debug)]
 pub enum TokenType {
     // keywords
+
+    // gimme
     Gimme,
     Where,
     Limit,
+    // insert
     Insert,
     Into,
+    // tables
+    Tables,
+    Table,
+    New,
+    Delete,
+    // data types
+    IntWord,
+    StringWord,
+    FloatWord,
+    BooleanWord,
 
     // comparison
     Equals,
@@ -59,11 +72,23 @@ pub fn lookup_identifier(identifier: &str) -> TokenType {
 
 fn keyword_to_token(keyword: &str) -> Option<TokenType> {
     match keyword {
+        // gimme
         "gimme" => Some(TokenType::Gimme),
         "where" => Some(TokenType::Where),
-        "insert" => Some(TokenType::Insert),
         "limit" => Some(TokenType::Limit),
+        // insert
+        "insert" => Some(TokenType::Insert),
         "into" => Some(TokenType::Into),
+        // tables
+        "tables" => Some(TokenType::Tables),
+        "table" => Some(TokenType::Table),
+        "new" => Some(TokenType::New),
+        "delete" => Some(TokenType::Delete),
+        // data types
+        "Int" => Some(TokenType::IntWord),
+        "Float" => Some(TokenType::FloatWord),
+        "String" => Some(TokenType::StringWord),
+        "Boolean" => Some(TokenType::BooleanWord),
         _ => None,
     }
 }

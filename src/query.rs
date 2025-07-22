@@ -1,7 +1,8 @@
-use crate::bql::ast;
-use crate::table::{self, Column, Data, Row, Table};
+use std::collections::HashMap;
 
+use crate::bql::ast;
 use crate::storage::{self, Record, RecordType};
+use crate::table::{self, Cell, Column, Row, Table};
 
 pub struct Engine {
     file: storage::File,
@@ -30,14 +31,20 @@ impl Engine {
             .expect("Unable to save tables");
     }
 
-    fn get_table_by_name(&self, name: String) -> Option<&Table> {
-        self.tables.iter().find(|&table| table.name() == &name)
+    fn get_table_by_name(&mut self, name: String) -> Option<&mut Table> {
+        self.tables.iter_mut().find(|table| table.name() == &name)
     }
 
     pub fn handle_query(&mut self, query: ast::Query) -> Result<String, String> {
         match query {
             ast::Query::Gimme(gimme) => match self.gimme(gimme) {
-                Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
+                // Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
+                Ok(rows) => Ok(format!("{:?}", rows)),
+                Err(e) => Err(e),
+            },
+            ast::Query::Insert(insert) => match self.insert(insert) {
+                // Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
+                Ok(_) => Ok(format!("Success")),
                 Err(e) => Err(e),
             },
             ast::Query::Tables(tables) => match self.tables(tables) {
@@ -56,7 +63,7 @@ impl Engine {
     }
 
     // GIMME
-    fn gimme(&self, gimme: ast::Gimme) -> Result<Vec<&Row>, String> {
+    fn gimme(&mut self, gimme: ast::Gimme) -> Result<Vec<&Row>, String> {
         let table = match self.get_table_by_name(gimme.table_identifier.value) {
             Some(t) => t,
             None => return Err("Table not found".to_owned()),
@@ -66,34 +73,25 @@ impl Engine {
             None => None,
         };
 
-        let condition = Engine::get_condition_fn_from_where(gimme.where_statement);
-
-        return Ok(table.find(condition, limit_number));
-    }
-    fn get_condition_fn_from_where(
-        where_statement: Option<ast::Where>,
-    ) -> impl Fn(&Row, &Vec<Column>) -> bool {
-        move |row, columns| match &where_statement {
-            Some(statement) => {
-                let column_index = match columns
-                    .iter()
-                    .position(|c| *c.name() == statement.field.value)
-                {
-                    Some(index) => index,
-                    None => panic!("Invalid field name"),
-                };
-
-                let row_value = row.values[column_index].data();
-                let where_value = table::Data::Int(Some(statement.value));
-
-                return row_value
-                    .operator_compare(&where_value, statement.comparison_operator.token_type());
-            }
-            None => true,
-        }
+        return table.find(&gimme.where_statement, limit_number);
     }
 
     // INSERT
+    fn insert(&mut self, insert: ast::Insert) -> Result<(), String> {
+        let table = match self.get_table_by_name(insert.table_identifier.value) {
+            Some(t) => t,
+            None => return Err("Table not found".to_owned()),
+        };
+
+        let mut row_values = HashMap::new();
+        for item in insert.values {
+            row_values.insert(item.key.value, Cell::new(item.value));
+        }
+
+        table.insert(Row { values: row_values })?;
+        self.flush();
+        Ok(())
+    }
 
     // TABLES
     fn tables(&self, _tables: ast::Tables) -> Result<&Vec<Table>, String> {
@@ -112,15 +110,7 @@ impl Engine {
         let columns = new_table
             .fields
             .iter()
-            .map(|field| {
-                Ok(Column::new(
-                    field.key.value.clone(),
-                    match Data::from_token_type(field.value.token_type()) {
-                        Some(v) => v,
-                        None => return Err("Invalid datatype in table creation".to_owned()),
-                    },
-                ))
-            })
+            .map(|field| Ok(Column::new(field.key.value.clone(), field.value.clone())))
             .collect::<Result<Vec<Column>, String>>()?;
 
         let table = Table::new(new_table.identifier.value, columns);

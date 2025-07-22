@@ -15,5 +15,5 @@ tables;
 new table Users {id: Int, name: String};
 delete table Users;
 
-insert {id: 5, name: "Thomas"} into Users;
+insert {id: 5, name: Thomas, value: 4.2} into Users;
 */

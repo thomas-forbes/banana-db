@@ -1,9 +1,9 @@
-use std::{borrow::Cow, fmt::Display};
+use std::{borrow::Cow, cmp, collections::HashMap, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-use crate::bql::token::TokenType;
+use crate::bql::{ast::Where, token::TokenType};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone, PartialOrd)]
 pub enum Data {
@@ -44,6 +44,40 @@ impl Data {
                 "Invalid token `{:?}` passed to `operator_compare`",
                 comparison_operator
             ),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Comparison {
+    Equals,
+    NotEquals,
+    Less,
+    LessEquals,
+    Greater,
+    GreaterEquals,
+}
+
+impl Comparison {
+    pub fn apply<T: PartialOrd + PartialEq>(&self, a: &T, b: &T) -> bool {
+        match self {
+            Comparison::Less => a < b,
+            Comparison::LessEquals => a <= b,
+            Comparison::Equals => a == b,
+            Comparison::Greater => a > b,
+            Comparison::GreaterEquals => a >= b,
+            Comparison::NotEquals => a != b,
+        }
+    }
+    pub fn from_token_type(token_type: &TokenType) -> Option<Self> {
+        match token_type {
+            TokenType::Equals => Some(Comparison::Equals),
+            TokenType::NotEquals => Some(Comparison::NotEquals),
+            TokenType::Less => Some(Comparison::Less),
+            TokenType::LessEquals => Some(Comparison::LessEquals),
+            TokenType::Greater => Some(Comparison::Greater),
+            TokenType::GreaterEquals => Some(Comparison::GreaterEquals),
+            _ => None,
         }
     }
 }
@@ -97,23 +131,7 @@ impl Display for Column {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Row {
-    pub values: Vec<Cell>,
-}
-
-// TODO: improve
-impl Tabled for Row {
-    const LENGTH: usize = 1;
-
-    fn fields(&self) -> Vec<Cow<'_, str>> {
-        self.values
-            .iter()
-            .map(|c| Cow::Owned(c.to_string()))
-            .collect()
-    }
-
-    fn headers() -> Vec<Cow<'static, str>> {
-        vec![Cow::Borrowed("value")]
-    }
+    pub values: HashMap<String, Cell>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -178,14 +196,28 @@ impl Table {
             .find(|column| column.name == column_name)
     }
 
-    pub fn insert(&mut self, row: Row) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn insert(&mut self, row: Row) -> Result<(), String> {
         if row.values.len() != self.columns.len() {
             return Err("Row length does not match number of columns".into());
         }
 
-        for (i, cell) in row.values.iter().enumerate() {
-            if !cell.data.same_type(&self.columns[i].datatype) {
-                return Err("Cell datatype does not match column datatype".into());
+        // for (i, cell) in row.values.iter().enumerate() {
+        //     if !cell.data.same_type(&self.columns[i].datatype) {
+        //         return Err("Cell datatype does not match column datatype".into());
+        //     }
+        // }
+        for (key, cell) in row.values.iter() {
+            let column = self
+                .columns
+                .iter()
+                .find(|&c| c.name == *key)
+                .ok_or(format!("Invalid field `{}`", key).to_owned())?;
+
+            if !column.datatype.same_type(&cell.data) {
+                return Err(format!(
+                    "Cell datatype `{}` does not match column datatype `{}`",
+                    cell.data, column.datatype
+                ));
             }
         }
 
@@ -195,9 +227,9 @@ impl Table {
 
     pub fn find(
         &self,
-        condition: impl Fn(&Row, &Vec<Column>) -> bool,
+        where_statement: &Option<Where>,
         limit: Option<usize>,
-    ) -> Vec<&Row> {
+    ) -> Result<Vec<&Row>, String> {
         let limit = limit.unwrap_or(1);
 
         let mut results = Vec::new();
@@ -205,11 +237,24 @@ impl Table {
             if results.len() >= limit {
                 break;
             }
-            if condition(row, &self.columns) {
+            if let Some(where_statement) = where_statement {
+                let field = &where_statement.field.value;
+                let row_value = row
+                    .values
+                    .get(field)
+                    .ok_or("Invalid field name".to_owned())?;
+
+                if where_statement
+                    .comparison
+                    .apply(&row_value.data, &where_statement.value)
+                {
+                    results.push(row);
+                }
+            } else {
                 results.push(row);
             }
         }
 
-        return results;
+        return Ok(results);
     }
 }

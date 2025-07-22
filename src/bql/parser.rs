@@ -1,7 +1,12 @@
-use crate::bql::{
-    ast::*,
-    lexer::Lexer,
-    token::{Token, TokenType},
+use std::cmp;
+
+use crate::{
+    bql::{
+        ast::*,
+        lexer::Lexer,
+        token::{Token, TokenType},
+    },
+    table::{Comparison, Data},
 };
 
 pub struct Parser<'a> {
@@ -64,6 +69,7 @@ impl Parser<'_> {
                 TokenType::Tables => Some(Query::Tables(self.parse_tables())),
                 TokenType::New => Some(Query::NewTable(self.parse_new_table())),
                 TokenType::Delete => Some(Query::DeleteTable(self.parse_delete_table())),
+                TokenType::Insert => Some(Query::Insert(self.parse_insert())),
                 _ => panic!("Invalid start of statement. Must be `gimme` or `insert`"),
             },
             None => None,
@@ -88,6 +94,33 @@ impl Parser<'_> {
             .parse()
             .expect("`parse_integer` should only be called on `TokenType::Integer`")
     }
+    fn parse_float(&self) -> f64 {
+        self.current_token
+            .as_ref()
+            .expect("Parsing should only happen on validated tokens")
+            .literal()
+            .parse()
+            .expect("`parse_float` should only be called on `TokenType::Float`")
+    }
+    fn parse_data(&self) -> Data {
+        match &self.current_token {
+            Some(token) => match token.token_type() {
+                // data values
+                TokenType::Identifier => Data::String(Some(token.literal().clone())),
+                TokenType::Integer => Data::Int(Some(self.parse_integer())),
+                TokenType::Float => Data::Float(Some(self.parse_float())),
+                TokenType::True => Data::Boolean(Some(true)),
+                TokenType::False => Data::Boolean(Some(false)),
+                // data types
+                TokenType::IntWord => Data::Int(None),
+                TokenType::StringWord => Data::String(None),
+                TokenType::FloatWord => Data::Float(None),
+                TokenType::BooleanWord => Data::Boolean(None),
+                _ => panic!("Invalid value in map"),
+            },
+            None => panic!("Expected value after identifier in map"),
+        }
+    }
     fn parse_map(&mut self) -> Map {
         let mut map = Vec::new();
         if self.current_token_is(TokenType::LeftBrace).is_some() {
@@ -95,20 +128,22 @@ impl Parser<'_> {
         } else {
             panic!("Called `parse_map` on invalid token");
         }
+
         while self.current_token_is(TokenType::RightBrace).is_none() {
+            if self.current_token_is(TokenType::Comma).is_some() {
+                self.next_token();
+            }
+
             let key = self.parse_identifier();
             if self.expect_peek(TokenType::Colon).is_none() {
                 panic!("Colon must follow key identifier");
             }
-            self.next_token();
 
-            let value = match &self.current_token {
-                Some(ct) => ct,
-                None => panic!("Missing value in map"),
-            }
-            .clone();
             self.next_token();
+            let value = self.parse_data();
+
             map.push(MapItem { key, value });
+            self.next_token(); // move to , or }
         }
         return map;
     }
@@ -153,27 +188,46 @@ impl Parser<'_> {
             panic!("Field required as first part of `where` comparison");
         }
         let identifier = self.parse_identifier();
+        self.next_token();
 
         // comparison operator
-        let comparison_operator = match COMPARISON_OPERATORS
-            .iter()
-            .find(|&operator| self.expect_peek(operator.clone()).is_some())
-        {
-            None => panic!("Invalid comparison operation"),
-            Some(_) => self.current_token.clone().unwrap(),
+        let comparison_operator = match &self.current_token {
+            Some(t) => match Comparison::from_token_type(t.token_type()) {
+                Some(v) => v,
+                None => panic!("Invalid token for comparison"),
+            },
+            None => panic!("Missing comparison operator"),
         };
+        self.next_token();
 
         // value
-        if self.expect_peek(TokenType::Integer).is_none() {
-            panic!("Integer is only supported datatype for comparison");
-        }
-        let value = self.parse_integer();
+        let value = self.parse_data();
 
         return Where {
             field: identifier,
-            comparison_operator,
+            comparison: comparison_operator,
             value,
         };
+    }
+
+    // INSERT
+    fn parse_insert(&mut self) -> Insert {
+        if self.expect_peek(TokenType::LeftBrace).is_none() {
+            panic!("`{{` expected after `insert`");
+        }
+        let values = self.parse_map();
+        if self.expect_peek(TokenType::Into).is_none() {
+            panic!("`into` expected after `insert`");
+        }
+        if self.expect_peek(TokenType::Identifier).is_none() {
+            panic!("Identifier expected after `into`");
+        }
+        let table_identifier = self.parse_identifier();
+
+        Insert {
+            values,
+            table_identifier,
+        }
     }
 
     // TABLES

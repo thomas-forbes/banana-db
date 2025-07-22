@@ -19,6 +19,9 @@ pub enum TokenType {
     StringWord,
     FloatWord,
     BooleanWord,
+    // boolean
+    True,
+    False,
 
     // comparison
     Equals,
@@ -28,18 +31,17 @@ pub enum TokenType {
     Greater,
     GreaterEquals,
 
-    // identifiers
+    // data
     Identifier,
     Integer,
+    Float,
 
     // delimiters
-    Semicolon,
     LeftBrace,
     RightBrace,
-
-    // object stuff
+    Semicolon,
     Colon,
-    Period,
+    Comma,
 }
 
 #[derive(Clone, Debug)]
@@ -89,6 +91,9 @@ fn keyword_to_token(keyword: &str) -> Option<TokenType> {
         "Float" => Some(TokenType::FloatWord),
         "String" => Some(TokenType::StringWord),
         "Boolean" => Some(TokenType::BooleanWord),
+        // boolean
+        "true" => Some(TokenType::True),
+        "false" => Some(TokenType::False),
         _ => None,
     }
 }

@@ -1,4 +1,7 @@
-use crate::bql::token::{Token, TokenType};
+use crate::{
+    bql::token::{Token, TokenType},
+    table::{Comparison, Data},
+};
 
 #[derive(Debug)]
 pub enum Query {
@@ -6,6 +9,7 @@ pub enum Query {
     Tables(Tables),
     NewTable(NewTable),
     DeleteTable(DeleteTable),
+    Insert(Insert),
 }
 
 // TODO: remove pub from fields
@@ -27,16 +31,18 @@ pub struct Limit {
     pub number: usize,
 }
 
-pub const COMPARISON_OPERATORS: [TokenType; 2] = [TokenType::Equals, TokenType::NotEquals];
 #[derive(Debug, Clone)]
 pub struct Where {
     pub field: Identifier,
-    pub value: i64, // TODO: many datatype parsing
-    pub comparison_operator: Token,
+    pub value: Data,
+    pub comparison: Comparison,
 }
 
 #[derive(Debug, Clone)]
-pub struct Insert {}
+pub struct Insert {
+    pub values: Map,
+    pub table_identifier: Identifier,
+}
 
 #[derive(Debug, Clone)]
 pub struct Tables {}
@@ -55,7 +61,7 @@ pub struct DeleteTable {
 #[derive(Debug, Clone)]
 pub struct MapItem {
     pub key: Identifier,
-    pub value: Token,
+    pub value: Data,
 }
 
 pub type Map = Vec<MapItem>;

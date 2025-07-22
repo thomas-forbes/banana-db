@@ -64,7 +64,7 @@ impl Lexer<'_> {
                     Ok(Token::new(TokenType::Greater, ">".to_owned()))
                 }
             }
-            '.' => Ok(Token::new(TokenType::Period, ".".to_owned())),
+            ',' => Ok(Token::new(TokenType::Comma, ",".to_owned())),
             '{' => Ok(Token::new(TokenType::LeftBrace, "{".to_owned())),
             '}' => Ok(Token::new(TokenType::RightBrace, "}".to_owned())),
             ':' => Ok(Token::new(TokenType::Colon, ":".to_owned())),
@@ -75,8 +75,13 @@ impl Lexer<'_> {
                     let token_type = token::lookup_identifier(&literal);
                     Ok(Token::new(token_type, literal))
                 } else if c.is_ascii_digit() {
-                    let literal = self.read_while_condition(|c| c.is_ascii_digit());
-                    Ok(Token::new(TokenType::Integer, literal))
+                    let literal = self.read_while_condition(|c| c.is_ascii_digit() || c == '.');
+                    let token_type = if literal.contains('.') {
+                        TokenType::Float
+                    } else {
+                        TokenType::Integer
+                    };
+                    Ok(Token::new(token_type, literal))
                 } else {
                     Err(format!("Invalid character '{c}'").to_owned())
                 }

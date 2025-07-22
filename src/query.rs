@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::bql::ast;
 use crate::storage::{self, Record, RecordType};
-use crate::table::{self, Cell, Column, Row, Table};
+use crate::table::{Cell, Column, Row, Table};
 
 pub struct Engine {
     file: storage::File,

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cmp, collections::HashMap, fmt::Display};
+use std::{borrow::Cow, collections::HashMap, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
@@ -14,15 +14,6 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn from_token_type(token_type: &TokenType) -> Option<Self> {
-        match token_type {
-            TokenType::BooleanWord => Some(Data::Boolean(None)),
-            TokenType::IntWord => Some(Data::Int(None)),
-            TokenType::FloatWord => Some(Data::Float(None)),
-            TokenType::StringWord => Some(Data::String(None)),
-            _ => None,
-        }
-    }
     pub fn same_type(&self, other: &Self) -> bool {
         match (self, other) {
             (Data::Int(_), Data::Int(_)) => true,
@@ -30,20 +21,6 @@ impl Data {
             (Data::String(_), Data::String(_)) => true,
             (Data::Boolean(_), Data::Boolean(_)) => true,
             _ => false,
-        }
-    }
-    pub fn operator_compare(&self, other_data: &Data, comparison_operator: &TokenType) -> bool {
-        match comparison_operator {
-            TokenType::Equals => self == other_data,
-            TokenType::NotEquals => self != other_data,
-            TokenType::Less => self < other_data,
-            TokenType::LessEquals => self <= other_data,
-            TokenType::Greater => self > other_data,
-            TokenType::GreaterEquals => self >= other_data,
-            _ => panic!(
-                "Invalid token `{:?}` passed to `operator_compare`",
-                comparison_operator
-            ),
         }
     }
 }
@@ -184,16 +161,6 @@ impl Table {
 
     pub fn name(&self) -> &String {
         &self.name
-    }
-
-    pub fn get_columns(&self) -> &Vec<Column> {
-        &self.columns
-    }
-
-    pub fn get_column_by_name(&self, column_name: &str) -> Option<&Column> {
-        self.columns
-            .iter()
-            .find(|column| column.name == column_name)
     }
 
     pub fn insert(&mut self, row: Row) -> Result<(), String> {

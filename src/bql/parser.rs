@@ -241,7 +241,7 @@ impl Parser<'_> {
         let mut map = Vec::new();
         self.expect_current(TokenType::LeftBrace)?;
 
-        while self.current_token_is(TokenType::RightBrace).is_ok() {
+        while self.current_token_is(TokenType::RightBrace).is_err() {
             if self.current_token_is(TokenType::Comma).is_ok() {
                 self.next_token()?;
             }

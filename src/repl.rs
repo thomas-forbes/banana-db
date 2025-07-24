@@ -17,9 +17,9 @@ pub fn start() {
         let lexer = Lexer::new(&input);
         let mut parser = Parser::new(lexer);
         let query = match parser.parse_query() {
-            Some(q) => q,
-            None => {
-                eprintln!("INVALID QUERY");
+            Ok(q) => q,
+            Err(e) => {
+                eprintln!("{}", e);
                 continue;
             }
         };

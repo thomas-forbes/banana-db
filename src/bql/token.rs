@@ -45,16 +45,32 @@ pub enum TokenType {
 }
 
 #[derive(Clone, Debug)]
+pub struct TokenPosition {
+    pub start_index: usize,
+    pub end_index: usize,
+}
+
+#[derive(Clone, Debug)]
 pub struct Token {
     token_type: TokenType,
     literal: String,
+    position: TokenPosition,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, literal: String) -> Self {
+    pub fn new(
+        token_type: TokenType,
+        literal: String,
+        start_index: usize,
+        end_index: usize,
+    ) -> Self {
         return Token {
             token_type,
             literal,
+            position: TokenPosition {
+                start_index,
+                end_index,
+            },
         };
     }
     pub fn literal(&self) -> &String {
@@ -62,6 +78,9 @@ impl Token {
     }
     pub fn token_type(&self) -> &TokenType {
         &self.token_type
+    }
+    pub fn position(&self) -> &TokenPosition {
+        &self.position
     }
 }
 

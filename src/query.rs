@@ -1,8 +1,45 @@
 use std::collections::HashMap;
+use std::fmt;
+
+use colored::Colorize;
 
 use crate::bql::ast;
 use crate::storage::{self, Record, RecordType};
-use crate::table::{Cell, Column, Row, Table};
+use crate::table::{Cell, Column, Row, Table, TableError};
+use crate::utils;
+
+pub enum QueryError {
+    TableError(TableError),
+    TableDoesNotExist(String),
+    TableAlreadyExists(String),
+}
+
+impl QueryError {
+    pub fn to_message(&self) -> String {
+        match self {
+            QueryError::TableError(e) => e.to_string(),
+            QueryError::TableDoesNotExist(table_name) => {
+                format!("Table `{}` does not exist", table_name)
+            }
+            QueryError::TableAlreadyExists(table_name) => {
+                format!("Table `{}` already exists", table_name)
+            }
+        }
+    }
+}
+
+impl fmt::Display for QueryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            utils::format_message(
+                &"query error".bright_yellow().to_string(),
+                &self.to_message()
+            )
+        )
+    }
+}
 
 pub struct Engine {
     file: storage::File,
@@ -35,7 +72,7 @@ impl Engine {
         self.tables.iter_mut().find(|table| table.name() == &name)
     }
 
-    pub fn handle_query(&mut self, query: ast::Query) -> Result<String, String> {
+    pub fn handle_query(&mut self, query: ast::Query) -> Result<String, QueryError> {
         match query {
             ast::Query::Gimme(gimme) => match self.gimme(gimme) {
                 // Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
@@ -44,7 +81,10 @@ impl Engine {
             },
             ast::Query::Insert(insert) => match self.insert(insert) {
                 // Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
-                Ok(_) => Ok(format!("Success")),
+                Ok(_) => Ok(utils::format_message(
+                    &"success".bright_green().to_string(),
+                    &"Inserted row",
+                )),
                 Err(e) => Err(e),
             },
             ast::Query::Tables(tables) => match self.tables(tables) {
@@ -56,62 +96,65 @@ impl Engine {
                 Err(e) => Err(e),
             },
             ast::Query::DeleteTable(delete_table) => match self.delete_table(&delete_table) {
-                Ok(_) => Ok(format!("Removed table `{}`", delete_table.identifier.value)),
+                Ok(_) => Ok(utils::format_message(
+                    &"success".bright_green().to_string(),
+                    &format!("Removed table `{}`", delete_table.identifier.value),
+                )),
                 Err(e) => Err(e),
             },
         }
     }
 
     // GIMME
-    fn gimme(&mut self, gimme: ast::Gimme) -> Result<Vec<&Row>, String> {
-        let table = match self.get_table_by_name(gimme.table_identifier.value) {
-            Some(t) => t,
-            None => return Err("Table not found".to_owned()),
-        };
+    fn gimme(&mut self, gimme: ast::Gimme) -> Result<Vec<&Row>, QueryError> {
+        let table = self
+            .get_table_by_name(gimme.table_identifier.value.clone())
+            .ok_or_else(|| QueryError::TableDoesNotExist(gimme.table_identifier.value))?;
+
         let limit_number = match gimme.limit_statement {
             Some(l) => Some(l.number),
             None => None,
         };
 
-        return table.find(&gimme.where_statement, limit_number);
+        return table
+            .find(&gimme.where_statement, limit_number)
+            .map_err(QueryError::TableError);
     }
 
     // INSERT
-    fn insert(&mut self, insert: ast::Insert) -> Result<(), String> {
-        let table = match self.get_table_by_name(insert.table_identifier.value) {
-            Some(t) => t,
-            None => return Err("Table not found".to_owned()),
-        };
+    fn insert(&mut self, insert: ast::Insert) -> Result<(), QueryError> {
+        let table = self
+            .get_table_by_name(insert.table_identifier.value.clone())
+            .ok_or_else(|| QueryError::TableDoesNotExist(insert.table_identifier.value))?;
 
         let mut row_values = HashMap::new();
         for item in insert.values {
             row_values.insert(item.key.value, Cell::new(item.value));
         }
 
-        table.insert(Row { values: row_values })?;
+        table
+            .insert(Row { values: row_values })
+            .map_err(QueryError::TableError)?;
         self.flush();
         Ok(())
     }
 
     // TABLES
-    fn tables(&self, _tables: ast::Tables) -> Result<&Vec<Table>, String> {
+    fn tables(&self, _tables: ast::Tables) -> Result<&Vec<Table>, QueryError> {
         Ok(&self.tables)
     }
-    fn new_table(&mut self, new_table: ast::NewTable) -> Result<Table, String> {
+    fn new_table(&mut self, new_table: ast::NewTable) -> Result<Table, QueryError> {
         if self
             .get_table_by_name(new_table.identifier.value.clone())
             .is_some()
         {
-            return Err(format!(
-                "Table `{}` already exists",
-                new_table.identifier.value
-            ));
+            return Err(QueryError::TableAlreadyExists(new_table.identifier.value));
         }
         let columns = new_table
             .fields
             .iter()
-            .map(|field| Ok(Column::new(field.key.value.clone(), field.value.clone())))
-            .collect::<Result<Vec<Column>, String>>()?;
+            .map(|field| Column::new(field.key.value.clone(), field.value.clone()))
+            .collect::<Vec<Column>>();
 
         let table = Table::new(new_table.identifier.value, columns);
         self.tables.push(table.clone());
@@ -119,12 +162,12 @@ impl Engine {
 
         Ok(table)
     }
-    fn delete_table(&mut self, delete_table: &ast::DeleteTable) -> Result<(), String> {
+    fn delete_table(&mut self, delete_table: &ast::DeleteTable) -> Result<(), QueryError> {
         let table_index_to_remove = self
             .tables
             .iter()
             .position(|table| table.name() == &delete_table.identifier.value)
-            .ok_or("Table not found".to_owned())?;
+            .ok_or_else(|| QueryError::TableDoesNotExist(delete_table.identifier.value.clone()))?;
 
         self.tables.remove(table_index_to_remove);
         self.flush();

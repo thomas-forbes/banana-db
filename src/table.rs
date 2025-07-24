@@ -5,6 +5,29 @@ use tabled::Tabled;
 
 use crate::bql::{ast::Where, token::TokenType};
 
+#[derive(Debug, Clone)]
+pub enum TableError {
+    RowColumnCountMismatch,
+    FieldDoesNotExist(String),
+    TypeMismatch(String, String),
+}
+
+impl Display for TableError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TableError::RowColumnCountMismatch => {
+                write!(f, "Row length does not match number of columns")
+            }
+            TableError::FieldDoesNotExist(field) => write!(f, "Field `{}` does not exist", field),
+            TableError::TypeMismatch(cell_type, column_type) => write!(
+                f,
+                "Cell datatype `{}` does not match column datatype `{}`",
+                cell_type, column_type
+            ),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone, PartialOrd)]
 pub enum Data {
     Int(Option<i64>),
@@ -163,27 +186,22 @@ impl Table {
         &self.name
     }
 
-    pub fn insert(&mut self, row: Row) -> Result<(), String> {
+    pub fn insert(&mut self, row: Row) -> Result<(), TableError> {
         if row.values.len() != self.columns.len() {
-            return Err("Row length does not match number of columns".into());
+            return Err(TableError::RowColumnCountMismatch);
         }
 
-        // for (i, cell) in row.values.iter().enumerate() {
-        //     if !cell.data.same_type(&self.columns[i].datatype) {
-        //         return Err("Cell datatype does not match column datatype".into());
-        //     }
-        // }
         for (key, cell) in row.values.iter() {
             let column = self
                 .columns
                 .iter()
                 .find(|&c| c.name == *key)
-                .ok_or(format!("Invalid field `{}`", key).to_owned())?;
+                .ok_or(TableError::FieldDoesNotExist(key.clone()))?;
 
             if !column.datatype.same_type(&cell.data) {
-                return Err(format!(
-                    "Cell datatype `{}` does not match column datatype `{}`",
-                    cell.data, column.datatype
+                return Err(TableError::TypeMismatch(
+                    cell.data.to_string(),
+                    column.datatype.to_string(),
                 ));
             }
         }
@@ -196,7 +214,7 @@ impl Table {
         &self,
         where_statement: &Option<Where>,
         limit: Option<usize>,
-    ) -> Result<Vec<&Row>, String> {
+    ) -> Result<Vec<&Row>, TableError> {
         let limit = limit.unwrap_or(1);
 
         let mut results = Vec::new();
@@ -209,7 +227,7 @@ impl Table {
                 let row_value = row
                     .values
                     .get(field)
-                    .ok_or("Invalid field name".to_owned())?;
+                    .ok_or(TableError::FieldDoesNotExist(field.clone()))?;
 
                 if where_statement
                     .comparison

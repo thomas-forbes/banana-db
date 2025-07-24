@@ -3,6 +3,7 @@ mod query;
 mod repl;
 mod storage;
 mod table;
+mod utils;
 
 fn main() {
     repl::start();

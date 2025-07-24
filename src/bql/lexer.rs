@@ -1,5 +1,65 @@
-use crate::bql::token::{self, Token, TokenType};
-use std::{iter::Peekable, str::CharIndices};
+use colored::Colorize;
+
+use crate::{
+    bql::token::{self, Token, TokenPosition, TokenType},
+    utils,
+};
+use std::{fmt, iter::Peekable, str::CharIndices};
+
+#[derive(Debug, Clone)]
+pub enum LexerErrorReason {
+    ExpectedChar((char, Option<char>)),
+    InvalidCharacter(char),
+    EOF,
+}
+
+impl fmt::Display for LexerErrorReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LexerErrorReason::ExpectedChar((received, expected)) => {
+                write!(f, "Received `{}`", received)?;
+                if let Some(expected) = expected {
+                    write!(f, " but expected `{}`", expected)?;
+                }
+                Ok(())
+            }
+            LexerErrorReason::InvalidCharacter(c) => write!(f, "Invalid character `{}`", c),
+            LexerErrorReason::EOF => write!(f, "Unexpected end of input"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LexerError {
+    pub reason: LexerErrorReason,
+    input: String,
+    position: Option<TokenPosition>,
+}
+
+impl fmt::Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            utils::format_message(
+                &"lexer error".bright_red().to_string(),
+                &self.reason.to_string()
+            )
+        )?;
+        if let Some(position) = &self.position {
+            write!(
+                f,
+                "{}",
+                utils::format_line_section_highlight(
+                    &self.input,
+                    position.start_index,
+                    position.end_index
+                )
+            )?;
+        }
+        Ok(())
+    }
+}
 
 type CurrentChar = (usize, char);
 pub struct Lexer<'a> {
@@ -23,43 +83,67 @@ impl Lexer<'_> {
         &self.input
     }
 
-    pub fn next_token(&mut self) -> Option<Token> {
+    fn build_error(&self, reason: LexerErrorReason, position: Option<TokenPosition>) -> LexerError {
+        LexerError {
+            input: self.input.clone(),
+            reason,
+            position,
+        }
+    }
+
+    pub fn next_token(&mut self) -> Result<Token, LexerError> {
         self.skip_whitespace();
         let (current_index, current_char) = match self.current_char {
             Some(c) => c,
-            None => return None,
+            None => return Err(self.build_error(LexerErrorReason::EOF, None)),
         };
 
         let start_index = current_index;
-        let next_token: Result<Token, String> = match current_char {
+        let next_token: Result<Token, LexerError> = match current_char {
             '=' => {
-                if let Some(next_c) = self.peek()
-                    && next_c == '='
-                {
-                    self.read_next_char();
-                    Ok(Token::new(
-                        TokenType::Equals,
-                        "==".to_owned(),
-                        start_index,
-                        start_index + 1,
-                    ))
+                if let Some(next_c) = self.peek() {
+                    if next_c == '=' {
+                        self.read_next_char();
+                        Ok(Token::new(
+                            TokenType::Equals,
+                            "==".to_owned(),
+                            start_index,
+                            start_index + 1,
+                        ))
+                    } else {
+                        Err(self.build_error(
+                            LexerErrorReason::ExpectedChar((next_c, Some('='))),
+                            Some(TokenPosition {
+                                start_index,
+                                end_index: start_index + 1,
+                            }),
+                        ))
+                    }
                 } else {
-                    Err("Expected '=' after '='".to_owned())
+                    Err(self.build_error(LexerErrorReason::EOF, None))
                 }
             }
             '!' => {
-                if let Some(next_c) = self.peek()
-                    && next_c == '='
-                {
-                    self.read_next_char();
-                    Ok(Token::new(
-                        TokenType::NotEquals,
-                        "!=".to_owned(),
-                        start_index,
-                        start_index + 1,
-                    ))
+                if let Some(next_c) = self.peek() {
+                    if next_c == '=' {
+                        self.read_next_char();
+                        Ok(Token::new(
+                            TokenType::NotEquals,
+                            "!=".to_owned(),
+                            start_index,
+                            start_index + 1,
+                        ))
+                    } else {
+                        Err(self.build_error(
+                            LexerErrorReason::ExpectedChar((next_c, Some('='))),
+                            Some(TokenPosition {
+                                start_index,
+                                end_index: start_index + 1,
+                            }),
+                        ))
+                    }
                 } else {
-                    Err("Expected '=' after '!'".to_owned())
+                    Err(self.build_error(LexerErrorReason::EOF, None))
                 }
             }
             '<' => {
@@ -152,22 +236,27 @@ impl Lexer<'_> {
                     } else {
                         TokenType::Integer
                     };
-                    Ok(Token::new(token_type, literal, start_index, offset))
+                    Ok(Token::new(
+                        token_type,
+                        literal,
+                        start_index,
+                        start_index + offset,
+                    ))
                 } else {
-                    Err(format!("Invalid character '{c}'").to_owned())
+                    Err(self.build_error(
+                        LexerErrorReason::InvalidCharacter(c),
+                        Some(TokenPosition {
+                            start_index,
+                            end_index: start_index + 1,
+                        }),
+                    ))
                 }
             }
         };
 
         self.read_next_char();
 
-        return match next_token {
-            Ok(token) => Some(token),
-            Err(error) => {
-                eprintln!("{}", error);
-                None
-            }
-        };
+        return next_token;
     }
 
     fn read_while_condition(&mut self, condition: impl Fn(char) -> bool) -> String {

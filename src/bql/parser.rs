@@ -1,14 +1,15 @@
-use std::fmt;
+use std::fmt::{self};
 
 use colored::Colorize;
 
 use crate::{
     bql::{
         ast::*,
-        lexer::Lexer,
+        lexer::{Lexer, LexerError, LexerErrorReason},
         token::{Token, TokenPosition, TokenType},
     },
     table::{Comparison, Data},
+    utils,
 };
 
 pub struct ParseError {
@@ -19,21 +20,29 @@ pub struct ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            format!("{}: {}", "parse error".bright_red(), self.reason).bold()
-        )?;
-        if let Some(position) = &self.position {
-            write!(f, "\n\t{}", self.input.dimmed())?;
-            write!(
-                f,
-                "\t{}{}",
-                " ".repeat(position.start_index),
-                "^".repeat(position.end_index - position.start_index + 1)
-                    .red()
-                    .bold()
-            )?;
+        match &self.reason {
+            ParseErrorReason::LexerError(e) => write!(f, "{}", e)?,
+            _ => {
+                write!(
+                    f,
+                    "{}",
+                    utils::format_message(
+                        &"parse error".bright_red().to_string(),
+                        &self.reason.to_string()
+                    )
+                )?;
+                if let Some(position) = &self.position {
+                    write!(
+                        f,
+                        "{}",
+                        utils::format_line_section_highlight(
+                            &self.input,
+                            position.start_index,
+                            position.end_index
+                        )
+                    )?;
+                }
+            }
         }
         Ok(())
     }
@@ -41,6 +50,7 @@ impl fmt::Display for ParseError {
 
 #[derive(Debug, Clone)]
 pub enum ParseErrorReason {
+    LexerError(LexerError),
     InvalidStartOfStatement(String),
     ExpectedToken((TokenType, Option<TokenType>)),
     MissingToken,
@@ -49,6 +59,7 @@ pub enum ParseErrorReason {
 impl fmt::Display for ParseErrorReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ParseErrorReason::LexerError(e) => write!(f, "{}", e),
             ParseErrorReason::InvalidStartOfStatement(literal) => {
                 write!(f, "`{}` is not a valid start of statement", literal)
             }
@@ -59,7 +70,7 @@ impl fmt::Display for ParseErrorReason {
                 }
                 Ok(())
             }
-            ParseErrorReason::MissingToken => write!(f, "Missing token"),
+            ParseErrorReason::MissingToken => write!(f, "Expected token but got EOF"),
         }
     }
 }
@@ -72,22 +83,27 @@ pub struct Parser<'a> {
 
 impl Parser<'_> {
     pub fn new<'a>(lexer: Lexer<'a>) -> Parser<'a> {
-        let mut parser: Parser<'a> = Parser {
+        let parser: Parser<'a> = Parser {
             lexer,
             peek_token: None,
             current_token: None,
         };
-
-        // fills peek and current token
-        parser.next_token();
-        parser.next_token();
         return parser;
     }
 
     // HELPERS
-    fn next_token(&mut self) {
+    fn next_token(&mut self) -> Result<(), ParseError> {
         self.current_token = self.peek_token.clone();
-        self.peek_token = self.lexer.next_token();
+        self.peek_token = match self.lexer.next_token() {
+            Ok(token) => Some(token),
+            Err(e) => match e.reason {
+                LexerErrorReason::EOF => None,
+                _ => {
+                    return Err(self.build_error(ParseErrorReason::LexerError(e), &self.peek_token));
+                }
+            },
+        };
+        Ok(())
     }
     fn build_error(&self, reason: ParseErrorReason, token: &Option<Token>) -> ParseError {
         ParseError {
@@ -137,17 +153,23 @@ impl Parser<'_> {
     }
     fn expect_current(&mut self, token_type: TokenType) -> Result<Token, ParseError> {
         let current_token = self.current_token_is(token_type)?.clone();
-        self.next_token();
+        self.next_token()?;
         Ok(current_token)
     }
     fn expect_peek(&mut self, token_type: TokenType) -> Result<Token, ParseError> {
         let peek_token = self.peek_token_is(token_type)?.clone();
-        self.next_token();
+        self.next_token()?;
         Ok(peek_token)
     }
 
     // PARSING
     pub fn parse_query(&mut self) -> Result<Query, ParseError> {
+        if self.peek_token.is_none() {
+            // fills peek and current token
+            self.next_token()?;
+            self.next_token()?;
+        }
+
         let current_token = self.get_current_token()?;
         match current_token.token_type() {
             TokenType::Gimme => self.parse_gimme().map(|g| Query::Gimme(g)),
@@ -221,17 +243,17 @@ impl Parser<'_> {
 
         while self.current_token_is(TokenType::RightBrace).is_ok() {
             if self.current_token_is(TokenType::Comma).is_ok() {
-                self.next_token();
+                self.next_token()?;
             }
 
             let key = self.parse_identifier()?;
             self.expect_peek(TokenType::Colon)?;
 
-            self.next_token();
+            self.next_token()?;
             let value = self.parse_data()?;
 
             map.push(MapItem { key, value });
-            self.next_token(); // moves to , or }
+            self.next_token()?; // moves to , or }
         }
         Ok(map)
     }
@@ -244,11 +266,11 @@ impl Parser<'_> {
         let mut where_statement = None;
         let mut limit_statement = None;
         if self.peek_token_is(TokenType::Where).is_ok() {
-            self.next_token();
+            self.next_token()?;
             where_statement = Some(self.parse_where()?);
         }
         if self.peek_token_is(TokenType::Limit).is_ok() {
-            self.next_token();
+            self.next_token()?;
             limit_statement = Some(self.parse_limit()?);
         }
         Ok(Gimme {
@@ -268,7 +290,7 @@ impl Parser<'_> {
         // identifier
         self.expect_peek(TokenType::Identifier)?;
         let identifier = self.parse_identifier()?;
-        self.next_token();
+        self.next_token()?;
 
         // comparison operator
         let comparison_token = self.get_current_token()?;
@@ -281,7 +303,7 @@ impl Parser<'_> {
                 ));
             }
         };
-        self.next_token();
+        self.next_token()?;
 
         // value
         let value = self.parse_data()?;

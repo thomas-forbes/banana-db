@@ -1,9 +1,13 @@
 use std::{borrow::Cow, collections::HashMap, fmt::Display};
 
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-use crate::bql::{ast::Where, token::TokenType};
+use crate::{
+    bql::{ast::Where, token::TokenType},
+    utils,
+};
 
 #[derive(Debug, Clone)]
 pub enum TableError {
@@ -46,6 +50,34 @@ impl Data {
             _ => false,
         }
     }
+    fn fmt_data_type(&self) -> String {
+        match self {
+            Data::Int(_) => "Int".blue().to_string(),
+            Data::Float(_) => "Float".cyan().to_string(),
+            Data::String(_) => "String".green().to_string(),
+            Data::Boolean(_) => "Boolean".purple().to_string(),
+        }
+    }
+    fn fmt_data_value(&self) -> Option<String> {
+        match self {
+            Data::Int(Some(i)) => Some(i.to_string()),
+            Data::Float(Some(f)) => Some(f.to_string()),
+            Data::String(Some(s)) => Some(s.clone()),
+            Data::Boolean(Some(b)) => Some(b.to_string()),
+            _ => None,
+        }
+    }
+}
+
+impl Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let data_type = self.fmt_data_type();
+        if let Some(value) = self.fmt_data_value() {
+            write!(f, "{}({})", data_type, value.dimmed())
+        } else {
+            write!(f, "{}", data_type)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -79,12 +111,6 @@ impl Comparison {
             TokenType::GreaterEquals => Some(Comparison::GreaterEquals),
             _ => None,
         }
-    }
-}
-
-impl Display for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
     }
 }
 
@@ -125,13 +151,45 @@ impl Column {
 
 impl Display for Column {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "`{}`: {}", self.name, self.datatype)
+        write!(f, "{}({})", self.datatype, self.name.dimmed(),)
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Row {
     pub values: HashMap<String, Cell>,
+}
+
+pub struct Rows<'a>(pub Vec<&'a Row>);
+
+impl<'a> Display for Rows<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut builder = tabled::builder::Builder::default();
+
+        let mut columns = std::collections::BTreeSet::new();
+        for row in &self.0 {
+            for key in row.values.keys() {
+                columns.insert(key.clone());
+            }
+        }
+        let columns: Vec<String> = columns.into_iter().collect();
+        builder.push_record(columns.iter().cloned());
+
+        for row in &self.0 {
+            let mut record = Vec::new();
+            for column in &columns {
+                if let Some(cell) = row.values.get(column) {
+                    record.push(cell.to_string());
+                } else {
+                    record.push(String::new());
+                }
+            }
+            builder.push_record(record);
+        }
+
+        let mut table = builder.build();
+        write!(f, "{}", utils::format_table(&mut table))
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -143,7 +201,11 @@ pub struct Table {
 
 impl Display for Table {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", tabled::Table::new(vec![self]))
+        write!(
+            f,
+            "{}",
+            utils::format_table(&mut tabled::Table::new(vec![self]))
+        )
     }
 }
 
@@ -214,7 +276,7 @@ impl Table {
         &self,
         where_statement: &Option<Where>,
         limit: Option<usize>,
-    ) -> Result<Vec<&Row>, TableError> {
+    ) -> Result<Rows, TableError> {
         let limit = limit.unwrap_or(1);
 
         let mut results = Vec::new();
@@ -240,6 +302,6 @@ impl Table {
             }
         }
 
-        return Ok(results);
+        return Ok(Rows(results));
     }
 }

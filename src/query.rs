@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::bql::ast;
 use crate::storage::{self, Record, RecordType};
-use crate::table::{Cell, Column, Row, Table, TableError};
+use crate::table::{Cell, Column, Row, Rows, Table, TableError};
 use crate::utils;
 
 pub enum QueryError {
@@ -75,12 +75,10 @@ impl Engine {
     pub fn handle_query(&mut self, query: ast::Query) -> Result<String, QueryError> {
         match query {
             ast::Query::Gimme(gimme) => match self.gimme(gimme) {
-                // Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
-                Ok(rows) => Ok(format!("{:?}", rows)),
+                Ok(rows) => Ok(format!("{}", rows)),
                 Err(e) => Err(e),
             },
             ast::Query::Insert(insert) => match self.insert(insert) {
-                // Ok(rows) => Ok(tabled::Table::new(rows).to_string()),
                 Ok(_) => Ok(utils::format_message(
                     &"success".bright_green().to_string(),
                     &"Inserted row",
@@ -88,7 +86,7 @@ impl Engine {
                 Err(e) => Err(e),
             },
             ast::Query::Tables(tables) => match self.tables(tables) {
-                Ok(tables) => Ok(tabled::Table::new(tables).to_string()),
+                Ok(tables) => Ok(utils::format_table(&mut tabled::Table::new(tables)).to_string()),
                 Err(e) => Err(e),
             },
             ast::Query::NewTable(new_table) => match self.new_table(new_table) {
@@ -106,7 +104,7 @@ impl Engine {
     }
 
     // GIMME
-    fn gimme(&mut self, gimme: ast::Gimme) -> Result<Vec<&Row>, QueryError> {
+    fn gimme(&mut self, gimme: ast::Gimme) -> Result<Rows, QueryError> {
         let table = self
             .get_table_by_name(gimme.table_identifier.value.clone())
             .ok_or_else(|| QueryError::TableDoesNotExist(gimme.table_identifier.value))?;

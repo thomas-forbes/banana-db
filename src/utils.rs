@@ -1,5 +1,5 @@
 use colored::Colorize;
-use tabled::settings::{Color, Format, Settings, Style, formatting::Justification, object::Rows};
+use tabled::settings::{Color, Settings, Style, object::Rows};
 
 pub fn format_line_section_highlight(input: &str, start_index: usize, end_index: usize) -> String {
     format!(

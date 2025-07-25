@@ -6,5 +6,5 @@ mod table;
 mod utils;
 
 fn main() {
-    repl::start();
+    repl::start().expect("Failed to start REPL");
 }

@@ -1,4 +1,5 @@
 pub mod error;
+mod tests;
 
 use crate::{
     bql::{
@@ -17,13 +18,15 @@ pub struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    pub fn new<'a>(lexer: Lexer<'a>) -> Parser<'a> {
-        let parser: Parser<'a> = Parser {
+    pub fn new<'a>(lexer: Lexer<'a>) -> Result<Parser<'a>, ParseError> {
+        let mut parser: Parser<'a> = Parser {
             lexer,
             peek_token: None,
             current_token: None,
         };
-        return parser;
+        parser.next_token()?;
+        parser.next_token()?;
+        return Ok(parser);
     }
 
     // HELPERS
@@ -32,7 +35,7 @@ impl Parser<'_> {
         self.peek_token = match self.lexer.next_token() {
             Ok(token) => Some(token),
             Err(e) => match e.reason {
-                LexerErrorReason::EOF => None,
+                LexerErrorReason::UnexpectedEOF => None,
                 _ => {
                     return Err(self.build_error(ParseErrorReason::LexerError(e), &self.peek_token));
                 }
@@ -50,7 +53,7 @@ impl Parser<'_> {
     fn get_current_token(&self) -> Result<&Token, ParseError> {
         self.current_token
             .as_ref()
-            .ok_or(self.build_error(ParseErrorReason::MissingToken, &self.current_token))
+            .ok_or(self.build_error(ParseErrorReason::UnexpectedEOF, &self.current_token))
     }
     fn current_token_is(&self, token_type: TokenType) -> Result<&Token, ParseError> {
         if let Some(current_token) = &self.current_token {
@@ -66,7 +69,7 @@ impl Parser<'_> {
                 ));
             }
         } else {
-            return Err(self.build_error(ParseErrorReason::MissingToken, &self.current_token));
+            return Err(self.build_error(ParseErrorReason::UnexpectedEOF, &self.current_token));
         }
     }
     fn peek_token_is(&self, token_type: TokenType) -> Result<&Token, ParseError> {
@@ -83,7 +86,7 @@ impl Parser<'_> {
                 ));
             }
         } else {
-            return Err(self.build_error(ParseErrorReason::MissingToken, &self.peek_token));
+            return Err(self.build_error(ParseErrorReason::UnexpectedEOF, &self.peek_token));
         }
     }
     fn expect_current(&mut self, token_type: TokenType) -> Result<Token, ParseError> {
@@ -99,12 +102,6 @@ impl Parser<'_> {
 
     // PARSING
     pub fn parse_query(&mut self) -> Result<Query, ParseError> {
-        if self.peek_token.is_none() {
-            // fills peek and current token
-            self.next_token()?;
-            self.next_token()?;
-        }
-
         let current_token = self.get_current_token()?;
         match current_token.token_type() {
             TokenType::Gimme => self.parse_gimme().map(|g| Query::Gimme(g)),
@@ -174,6 +171,7 @@ impl Parser<'_> {
     }
     fn parse_map(&mut self) -> Result<Map, ParseError> {
         let mut map = Vec::new();
+        println!("current token: {:?}", self.current_token);
         self.expect_current(TokenType::LeftBrace)?;
 
         while self.current_token_is(TokenType::RightBrace).is_err() {

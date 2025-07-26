@@ -9,6 +9,7 @@ use crate::{
     utils,
 };
 
+#[derive(Debug)]
 pub struct ParseError {
     input: String,
     reason: ParseErrorReason,
@@ -60,7 +61,7 @@ pub enum ParseErrorReason {
     LexerError(LexerError),
     InvalidStartOfStatement(String),
     ExpectedToken((TokenType, Option<TokenType>)),
-    MissingToken,
+    UnexpectedEOF,
 }
 
 impl fmt::Display for ParseErrorReason {
@@ -77,7 +78,7 @@ impl fmt::Display for ParseErrorReason {
                 }
                 Ok(())
             }
-            ParseErrorReason::MissingToken => write!(f, "Expected token but got EOF"),
+            ParseErrorReason::UnexpectedEOF => write!(f, "Expected token but got EOF"),
         }
     }
 }

@@ -11,7 +11,7 @@ pub enum Query {
 
 // TODO: remove pub from fields
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Identifier {
     pub value: String,
 }
@@ -55,7 +55,7 @@ pub struct DeleteTable {
     pub identifier: Identifier,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MapItem {
     pub key: Identifier,
     pub value: Data,

@@ -17,14 +17,9 @@ pub fn start() -> Result<(), Box<dyn std::error::Error>> {
                 rl.add_history_entry(input.as_str())?;
 
                 let lexer = Lexer::new(&input);
-                let mut parser = Parser::new(lexer);
-                let query = match parser.parse_query() {
-                    Ok(q) => q,
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        continue;
-                    }
-                };
+
+                let mut parser = Parser::new(lexer).unwrap();
+                let query = parser.parse_query().unwrap();
 
                 let file = storage::File::open("db.bin".to_string());
                 let mut engine = Engine::new(file);

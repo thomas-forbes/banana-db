@@ -80,7 +80,7 @@ impl Display for Data {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Comparison {
     Equals,
     NotEquals,

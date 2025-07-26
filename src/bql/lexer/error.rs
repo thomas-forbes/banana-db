@@ -8,7 +8,7 @@ use crate::{bql::token::TokenPosition, utils};
 pub enum LexerErrorReason {
     ExpectedChar((char, Option<char>)),
     InvalidCharacter(char),
-    EOF,
+    UnexpectedEOF,
 }
 
 impl fmt::Display for LexerErrorReason {
@@ -22,7 +22,7 @@ impl fmt::Display for LexerErrorReason {
                 Ok(())
             }
             LexerErrorReason::InvalidCharacter(c) => write!(f, "Invalid character `{}`", c),
-            LexerErrorReason::EOF => write!(f, "Unexpected end of input"),
+            LexerErrorReason::UnexpectedEOF => write!(f, "Unexpected end of input"),
         }
     }
 }

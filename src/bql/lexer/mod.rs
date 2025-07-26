@@ -1,4 +1,6 @@
 pub mod error;
+#[cfg(test)]
+mod tests;
 
 use crate::bql::{
     lexer::error::{LexerError, LexerErrorReason},
@@ -36,7 +38,7 @@ impl Lexer<'_> {
         self.skip_whitespace();
         let (current_index, current_char) = match self.current_char {
             Some(c) => c,
-            None => return Err(self.build_error(LexerErrorReason::EOF, None)),
+            None => return Err(self.build_error(LexerErrorReason::UnexpectedEOF, None)),
         };
 
         let start_index = current_index;
@@ -61,7 +63,7 @@ impl Lexer<'_> {
                         ))
                     }
                 } else {
-                    Err(self.build_error(LexerErrorReason::EOF, None))
+                    Err(self.build_error(LexerErrorReason::UnexpectedEOF, None))
                 }
             }
             '!' => {
@@ -84,7 +86,7 @@ impl Lexer<'_> {
                         ))
                     }
                 } else {
-                    Err(self.build_error(LexerErrorReason::EOF, None))
+                    Err(self.build_error(LexerErrorReason::UnexpectedEOF, None))
                 }
             }
             '<' => {
@@ -114,7 +116,7 @@ impl Lexer<'_> {
                     self.read_next_char();
                     Ok(Token::new(
                         TokenType::GreaterEquals,
-                        "<=".to_owned(),
+                        ">=".to_owned(),
                         start_index,
                         start_index + 1,
                     ))

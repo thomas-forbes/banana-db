@@ -1,79 +1,14 @@
-use std::fmt::{self};
-
-use colored::Colorize;
+pub mod error;
 
 use crate::{
     bql::{
         ast::*,
-        lexer::{Lexer, LexerError, LexerErrorReason},
-        token::{Token, TokenPosition, TokenType},
+        lexer::{Lexer, error::LexerErrorReason},
+        parser::error::{ParseError, ParseErrorReason},
+        token::{Token, TokenType},
     },
     table::{Comparison, Data},
-    utils,
 };
-
-pub struct ParseError {
-    input: String,
-    reason: ParseErrorReason,
-    position: Option<TokenPosition>,
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.reason {
-            ParseErrorReason::LexerError(e) => write!(f, "{}", e)?,
-            _ => {
-                write!(
-                    f,
-                    "{}",
-                    utils::format_message(
-                        &"parse error".bright_red().to_string(),
-                        &self.reason.to_string()
-                    )
-                )?;
-                if let Some(position) = &self.position {
-                    write!(
-                        f,
-                        "{}",
-                        utils::format_line_section_highlight(
-                            &self.input,
-                            position.start_index,
-                            position.end_index
-                        )
-                    )?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ParseErrorReason {
-    LexerError(LexerError),
-    InvalidStartOfStatement(String),
-    ExpectedToken((TokenType, Option<TokenType>)),
-    MissingToken,
-}
-
-impl fmt::Display for ParseErrorReason {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseErrorReason::LexerError(e) => write!(f, "{}", e),
-            ParseErrorReason::InvalidStartOfStatement(literal) => {
-                write!(f, "`{}` is not a valid start of statement", literal)
-            }
-            ParseErrorReason::ExpectedToken((received, expected)) => {
-                write!(f, "Received `{:?}`", received)?;
-                if let Some(expected) = expected {
-                    write!(f, " but expected `{:?}`", expected)?;
-                }
-                Ok(())
-            }
-            ParseErrorReason::MissingToken => write!(f, "Expected token but got EOF"),
-        }
-    }
-}
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -106,11 +41,11 @@ impl Parser<'_> {
         Ok(())
     }
     fn build_error(&self, reason: ParseErrorReason, token: &Option<Token>) -> ParseError {
-        ParseError {
-            input: self.lexer.get_input().to_owned(),
+        ParseError::new(
+            self.lexer.get_input().to_owned(),
             reason,
-            position: token.as_ref().map(|t| t.position().clone()),
-        }
+            token.as_ref().map(|t| t.position().clone()),
+        )
     }
     fn get_current_token(&self) -> Result<&Token, ParseError> {
         self.current_token

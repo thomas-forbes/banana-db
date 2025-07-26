@@ -1,65 +1,10 @@
-use colored::Colorize;
+pub mod error;
 
-use crate::{
-    bql::token::{self, Token, TokenPosition, TokenType},
-    utils,
+use crate::bql::{
+    lexer::error::{LexerError, LexerErrorReason},
+    token::{self, Token, TokenPosition, TokenType},
 };
-use std::{fmt, iter::Peekable, str::CharIndices};
-
-#[derive(Debug, Clone)]
-pub enum LexerErrorReason {
-    ExpectedChar((char, Option<char>)),
-    InvalidCharacter(char),
-    EOF,
-}
-
-impl fmt::Display for LexerErrorReason {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LexerErrorReason::ExpectedChar((received, expected)) => {
-                write!(f, "Received `{}`", received)?;
-                if let Some(expected) = expected {
-                    write!(f, " but expected `{}`", expected)?;
-                }
-                Ok(())
-            }
-            LexerErrorReason::InvalidCharacter(c) => write!(f, "Invalid character `{}`", c),
-            LexerErrorReason::EOF => write!(f, "Unexpected end of input"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LexerError {
-    pub reason: LexerErrorReason,
-    input: String,
-    position: Option<TokenPosition>,
-}
-
-impl fmt::Display for LexerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            utils::format_message(
-                &"lexer error".bright_red().to_string(),
-                &self.reason.to_string()
-            )
-        )?;
-        if let Some(position) = &self.position {
-            write!(
-                f,
-                "{}",
-                utils::format_line_section_highlight(
-                    &self.input,
-                    position.start_index,
-                    position.end_index
-                )
-            )?;
-        }
-        Ok(())
-    }
-}
+use std::{iter::Peekable, str::CharIndices};
 
 type CurrentChar = (usize, char);
 pub struct Lexer<'a> {
@@ -84,11 +29,7 @@ impl Lexer<'_> {
     }
 
     fn build_error(&self, reason: LexerErrorReason, position: Option<TokenPosition>) -> LexerError {
-        LexerError {
-            input: self.input.clone(),
-            reason,
-            position,
-        }
+        LexerError::new(self.input.clone(), reason, position)
     }
 
     pub fn next_token(&mut self) -> Result<Token, LexerError> {

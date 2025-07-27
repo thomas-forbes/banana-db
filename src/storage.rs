@@ -48,6 +48,7 @@ impl File {
         &mut self,
     ) -> Result<Vec<Record<T>>, Box<dyn std::error::Error>> {
         let mut buffer = Vec::new();
+        self.file.seek(SeekFrom::Start(0))?;
         self.file.read_to_end(&mut buffer)?;
 
         if buffer.is_empty() {

@@ -1,0 +1,4 @@
+delete table Users;
+new table Users {id: Int, name: String, age: Int};
+insert {id: 1, name: Alice, age: 30} into Users;
+insert {id: 2, name: Tom, age: 24} into Users;

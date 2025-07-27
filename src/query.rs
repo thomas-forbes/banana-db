@@ -8,6 +8,7 @@ use crate::storage::{self, Record, RecordType};
 use crate::table::{Cell, Column, Row, Rows, Table, TableError};
 use crate::utils;
 
+#[derive(Debug)]
 pub enum QueryError {
     TableError(TableError),
     TableDoesNotExist(String),
@@ -28,6 +29,8 @@ impl QueryError {
     }
 }
 
+impl std::error::Error for QueryError {}
+
 impl fmt::Display for QueryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -41,13 +44,13 @@ impl fmt::Display for QueryError {
     }
 }
 
-pub struct Engine {
-    file: storage::File,
+pub struct Engine<'a> {
+    file: &'a mut storage::File,
     tables: Vec<Table>,
 }
 
-impl Engine {
-    pub fn new(mut file: storage::File) -> Engine {
+impl<'a> Engine<'a> {
+    pub fn new(mut file: &'a mut storage::File) -> Engine<'a> {
         let tables = Engine::load_tables(&mut file);
         Engine { tables, file }
     }

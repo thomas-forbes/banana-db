@@ -1,4 +1,5 @@
 pub mod error;
+#[cfg(test)]
 mod tests;
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
         ast::*,
         lexer::{Lexer, error::LexerErrorReason},
         parser::error::{ParseError, ParseErrorReason},
-        token::{Token, TokenType},
+        token::{self, Token, TokenType},
     },
     table::{Comparison, Data},
 };
@@ -53,7 +54,7 @@ impl Parser<'_> {
     fn get_current_token(&self) -> Result<&Token, ParseError> {
         self.current_token
             .as_ref()
-            .ok_or(self.build_error(ParseErrorReason::UnexpectedEOF, &self.current_token))
+            .ok_or(self.build_error(ParseErrorReason::UnexpectedEOF(None), &self.current_token))
     }
     fn current_token_is(&self, token_type: TokenType) -> Result<&Token, ParseError> {
         if let Some(current_token) = &self.current_token {
@@ -69,7 +70,10 @@ impl Parser<'_> {
                 ));
             }
         } else {
-            return Err(self.build_error(ParseErrorReason::UnexpectedEOF, &self.current_token));
+            return Err(self.build_error(
+                ParseErrorReason::UnexpectedEOF(Some(token_type)),
+                &self.current_token,
+            ));
         }
     }
     fn peek_token_is(&self, token_type: TokenType) -> Result<&Token, ParseError> {
@@ -86,7 +90,10 @@ impl Parser<'_> {
                 ));
             }
         } else {
-            return Err(self.build_error(ParseErrorReason::UnexpectedEOF, &self.peek_token));
+            return Err(self.build_error(
+                ParseErrorReason::UnexpectedEOF(Some(token_type)),
+                &self.peek_token,
+            ));
         }
     }
     fn expect_current(&mut self, token_type: TokenType) -> Result<Token, ParseError> {
@@ -103,7 +110,7 @@ impl Parser<'_> {
     // PARSING
     pub fn parse_query(&mut self) -> Result<Query, ParseError> {
         let current_token = self.get_current_token()?;
-        match current_token.token_type() {
+        let query = match current_token.token_type() {
             TokenType::Gimme => self.parse_gimme().map(|g| Query::Gimme(g)),
             TokenType::Tables => self.parse_tables().map(|t| Query::Tables(t)),
             TokenType::New => self.parse_new_table().map(|t| Query::NewTable(t)),
@@ -113,7 +120,9 @@ impl Parser<'_> {
                 ParseErrorReason::InvalidStartOfStatement(current_token.literal().clone()),
                 &self.current_token,
             )),
-        }
+        };
+        self.expect_peek(TokenType::Semicolon)?;
+        return query;
     }
 
     fn parse_identifier(&self) -> Result<Identifier, ParseError> {
@@ -171,7 +180,6 @@ impl Parser<'_> {
     }
     fn parse_map(&mut self) -> Result<Map, ParseError> {
         let mut map = Vec::new();
-        println!("current token: {:?}", self.current_token);
         self.expect_current(TokenType::LeftBrace)?;
 
         while self.current_token_is(TokenType::RightBrace).is_err() {

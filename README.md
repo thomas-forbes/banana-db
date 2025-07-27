@@ -21,7 +21,7 @@ insert {id: 5, name: Thomas, value: 4.2} into Users;
 
 ## Roadmap
 
-- [ ] Tests 😅
+- [x] Tests
 - [ ] Indexes
 - [ ] Column contraints (unique, foreign key, etc)
 - [ ] Benchmarks

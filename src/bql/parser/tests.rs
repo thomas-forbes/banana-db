@@ -163,3 +163,20 @@ fn parse_type_map() {
     ];
     assert_eq!(map, expected_map);
 }
+
+#[test]
+fn semicolon_required() {
+    let inputs = vec![
+        "gimme users",
+        "insert {id: 1, name: John, wealth: 1.5, dead: false} into users",
+        "tables",
+        "new table users {id: Int, name: String, wealth: Float, dead: Boolean}",
+        "delete table users",
+    ];
+    for input in inputs {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer).unwrap();
+        let err = parser.parse_query();
+        assert!(err.is_err());
+    }
+}

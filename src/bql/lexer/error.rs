@@ -68,3 +68,5 @@ impl fmt::Display for LexerError {
         Ok(())
     }
 }
+
+impl std::error::Error for LexerError {}

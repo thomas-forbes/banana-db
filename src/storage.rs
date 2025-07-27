@@ -33,7 +33,7 @@ pub struct File {
 }
 
 impl File {
-    pub fn open(path: String) -> Self {
+    pub fn open(path: &str) -> Self {
         let file = OpenOptions::new()
             .read(true)
             .write(true)

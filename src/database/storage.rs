@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
+    path::PathBuf,
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -29,19 +30,21 @@ impl<T: Serialize + Clone> Record<T> {
 }
 
 pub struct File {
+    file_path: PathBuf,
     file: fs::File,
 }
 
 impl File {
     pub fn open(path: &str) -> Self {
+        let file_path = PathBuf::from(path);
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(path)
+            .open(&file_path)
             .expect("Failed to open database file");
 
-        Self { file }
+        Self { file, file_path }
     }
 
     pub fn load_records<T: fmt::Debug + Serialize + for<'de> Deserialize<'de>>(
@@ -72,5 +75,9 @@ impl File {
         self.file.set_len(encoded.len() as u64)?;
 
         Ok(())
+    }
+
+    pub fn delete(&mut self) -> Result<(), std::io::Error> {
+        fs::remove_file(&self.file_path)
     }
 }

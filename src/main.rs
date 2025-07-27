@@ -1,9 +1,5 @@
+use banana_db::{bql, repl};
 use clap::Parser;
-
-mod bql; // banana query language
-mod database;
-mod repl;
-mod utils;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

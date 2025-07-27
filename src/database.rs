@@ -26,4 +26,7 @@ impl Database {
         let mut engine = Engine::new(&mut self.file);
         engine.handle_query(query).map_err(|err| err.to_string())
     }
+    pub fn delete(&mut self) -> Result<(), std::io::Error> {
+        self.file.delete()
+    }
 }

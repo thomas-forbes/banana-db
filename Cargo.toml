@@ -1,5 +1,5 @@
 [package]
-name = "banana-db"
+name = "banana_db"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,3 +10,10 @@ colored = "3.0.0"
 rustyline = "16.0.0"
 serde = { version = "1.0.219", features = ["derive"] }
 tabled = { version = "0.20.0", features = ["ansi"] }
+
+[dev-dependencies]
+criterion = { version = "0.7", features = ["html_reports"] }
+
+[[bench]]
+name = "bench"
+harness = false

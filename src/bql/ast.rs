@@ -1,4 +1,4 @@
-use crate::table::{Comparison, Data};
+use crate::database::data::{Comparison, Data};
 
 #[derive(Debug)]
 pub enum Query {

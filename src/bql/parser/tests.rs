@@ -4,7 +4,7 @@ use crate::{
         lexer::Lexer,
         parser::Parser,
     },
-    table::{Comparison, Data},
+    database::data::{Comparison, Data},
 };
 
 #[test]

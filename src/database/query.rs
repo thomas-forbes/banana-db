@@ -4,8 +4,8 @@ use std::fmt;
 use colored::Colorize;
 
 use crate::bql::ast;
-use crate::storage::{self, Record, RecordType};
-use crate::table::{Cell, Column, Row, Rows, Table, TableError};
+use crate::database::storage::{self, Record, RecordType};
+use crate::database::table::{Cell, Column, Row, Rows, Table, TableError};
 use crate::utils;
 
 #[derive(Debug)]

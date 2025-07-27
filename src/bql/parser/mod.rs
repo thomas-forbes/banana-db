@@ -7,9 +7,9 @@ use crate::{
         ast::*,
         lexer::{Lexer, error::LexerErrorReason},
         parser::error::{ParseError, ParseErrorReason},
-        token::{self, Token, TokenType},
+        token::{Token, TokenType},
     },
-    table::{Comparison, Data},
+    database::data::{Comparison, Data},
 };
 
 pub struct Parser<'a> {

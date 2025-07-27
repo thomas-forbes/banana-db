@@ -1,25 +1,7 @@
-use crate::{
-    bql::{lexer::Lexer, parser::Parser},
-    query::Engine,
-    storage,
-};
-
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 
-fn handle_query_string(db_file_name: &str, input: &str) -> Result<String, String> {
-    let mut file = storage::File::open(&db_file_name);
-    let mut engine = Engine::new(&mut file);
-
-    let lexer = Lexer::new(&input);
-
-    let mut parser = Parser::new(lexer).map_err(|err| format!("{}", err))?;
-    let query = parser.parse_query().map_err(|err| format!("{}", err))?;
-
-    engine
-        .handle_query(query)
-        .map_err(|error| error.to_string())
-}
+use crate::database::Database;
 
 pub fn start(db_file_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut rl = DefaultEditor::new()?;
@@ -29,7 +11,8 @@ pub fn start(db_file_name: &str) -> Result<(), Box<dyn std::error::Error>> {
         match readline {
             Ok(input) => {
                 rl.add_history_entry(&input)?;
-                match handle_query_string(db_file_name, &input) {
+                let mut db = Database::new(db_file_name);
+                match db.handle_query(&input) {
                     Ok(out) => println!("{}", out),
                     Err(err) => eprintln!("{}", err),
                 }

@@ -1,10 +1,8 @@
 use clap::Parser;
 
 mod bql; // banana query language
-mod query;
+mod database;
 mod repl;
-mod storage;
-mod table;
 mod utils;
 
 /// Simple program to greet a person

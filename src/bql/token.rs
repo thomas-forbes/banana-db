@@ -42,6 +42,9 @@ pub enum TokenType {
     Semicolon,
     Colon,
     Comma,
+
+    // other
+    At,
 }
 
 #[derive(Clone, Debug)]

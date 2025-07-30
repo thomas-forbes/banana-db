@@ -96,7 +96,7 @@ fn parse_invalid_start() {
 
 #[test]
 fn parse_value_map() {
-    let input = "{id: 1, name: John, wealth: 1.5, dead: false};";
+    let input = "{id: 1, name: John, wealth: 1.5 @decorator, dead: false};";
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer).unwrap();
     let map = parser.parse_map().unwrap();
@@ -106,24 +106,30 @@ fn parse_value_map() {
                 value: "id".to_string(),
             },
             value: Data::Int(Some(1)),
+            decorators: vec![],
         },
         MapItem {
             key: Identifier {
                 value: "name".to_string(),
             },
             value: Data::String(Some("John".to_string())),
+            decorators: vec![],
         },
         MapItem {
             key: Identifier {
                 value: "wealth".to_string(),
             },
             value: Data::Float(Some(1.5)),
+            decorators: vec![Identifier {
+                value: "decorator".to_string(),
+            }],
         },
         MapItem {
             key: Identifier {
                 value: "dead".to_string(),
             },
             value: Data::Boolean(Some(false)),
+            decorators: vec![],
         },
     ];
     assert_eq!(map, expected_map);
@@ -131,7 +137,7 @@ fn parse_value_map() {
 
 #[test]
 fn parse_type_map() {
-    let input = "{id: Int, name: String, wealth: Float, dead: Boolean};";
+    let input = "{id: Int @index @unique, name: String, wealth: Float, dead: Boolean};";
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer).unwrap();
     let map = parser.parse_map().unwrap();
@@ -141,24 +147,35 @@ fn parse_type_map() {
                 value: "id".to_string(),
             },
             value: Data::Int(None),
+            decorators: vec![
+                Identifier {
+                    value: "index".to_string(),
+                },
+                Identifier {
+                    value: "unique".to_string(),
+                },
+            ],
         },
         MapItem {
             key: Identifier {
                 value: "name".to_string(),
             },
             value: Data::String(None),
+            decorators: vec![],
         },
         MapItem {
             key: Identifier {
                 value: "wealth".to_string(),
             },
             value: Data::Float(None),
+            decorators: vec![],
         },
         MapItem {
             key: Identifier {
                 value: "dead".to_string(),
             },
             value: Data::Boolean(None),
+            decorators: vec![],
         },
     ];
     assert_eq!(map, expected_map);

@@ -9,7 +9,6 @@ use crate::{
     utils,
 };
 
-#[derive(Debug)]
 pub struct ParseError {
     input: String,
     reason: ParseErrorReason,
@@ -57,11 +56,20 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+#[derive(Clone)]
 pub enum ParseErrorReason {
     LexerError(LexerError),
     InvalidStartOfStatement(String),
-    ExpectedToken((TokenType, Option<TokenType>)),
+    ExpectedToken {
+        received: TokenType,
+        expected: Option<TokenType>,
+    },
     UnexpectedEOF(Option<TokenType>),
 }
 
@@ -72,7 +80,7 @@ impl fmt::Display for ParseErrorReason {
             ParseErrorReason::InvalidStartOfStatement(literal) => {
                 write!(f, "`{}` is not a valid start of statement", literal)
             }
-            ParseErrorReason::ExpectedToken((received, expected)) => {
+            ParseErrorReason::ExpectedToken { received, expected } => {
                 write!(f, "Received `{:?}`", received)?;
                 if let Some(expected) = expected {
                     write!(f, " but expected `{:?}`", expected)?;

@@ -129,6 +129,12 @@ impl Lexer<'_> {
                     ))
                 }
             }
+            '@' => Ok(Token::new(
+                TokenType::At,
+                "@".to_owned(),
+                start_index,
+                start_index,
+            )),
             ',' => Ok(Token::new(
                 TokenType::Comma,
                 ",".to_owned(),

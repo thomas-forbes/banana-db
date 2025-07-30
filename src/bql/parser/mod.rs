@@ -62,10 +62,10 @@ impl Parser<'_> {
                 return Ok(current_token);
             } else {
                 return Err(self.build_error(
-                    ParseErrorReason::ExpectedToken((
-                        current_token.token_type().clone(),
-                        Some(token_type),
-                    )),
+                    ParseErrorReason::ExpectedToken {
+                        received: current_token.token_type().clone(),
+                        expected: Some(token_type),
+                    },
                     &self.current_token,
                 ));
             }
@@ -82,10 +82,10 @@ impl Parser<'_> {
                 return Ok(peek_token);
             } else {
                 return Err(self.build_error(
-                    ParseErrorReason::ExpectedToken((
-                        peek_token.token_type().clone(),
-                        Some(token_type),
-                    )),
+                    ParseErrorReason::ExpectedToken {
+                        received: peek_token.token_type().clone(),
+                        expected: Some(token_type),
+                    },
                     &self.peek_token,
                 ));
             }
@@ -137,10 +137,10 @@ impl Parser<'_> {
 
         token.literal().parse().map_err(|_| {
             self.build_error(
-                ParseErrorReason::ExpectedToken((
-                    token.token_type().clone(),
-                    Some(TokenType::Integer),
-                )),
+                ParseErrorReason::ExpectedToken {
+                    received: token.token_type().clone(),
+                    expected: Some(TokenType::Integer),
+                },
                 &self.current_token,
             )
         })
@@ -150,10 +150,10 @@ impl Parser<'_> {
 
         token.literal().parse().map_err(|_| {
             self.build_error(
-                ParseErrorReason::ExpectedToken((
-                    token.token_type().clone(),
-                    Some(TokenType::Float),
-                )),
+                ParseErrorReason::ExpectedToken {
+                    received: token.token_type().clone(),
+                    expected: Some(TokenType::Float),
+                },
                 &self.current_token,
             )
         })
@@ -173,7 +173,10 @@ impl Parser<'_> {
             TokenType::FloatWord => Ok(Data::Float(None)),
             TokenType::BooleanWord => Ok(Data::Boolean(None)),
             _ => Err(self.build_error(
-                ParseErrorReason::ExpectedToken((current_token.token_type().clone(), None)),
+                ParseErrorReason::ExpectedToken {
+                    received: current_token.token_type().clone(),
+                    expected: None,
+                },
                 &self.current_token,
             )),
         }
@@ -193,7 +196,19 @@ impl Parser<'_> {
             self.next_token()?;
             let value = self.parse_data()?;
 
-            map.push(MapItem { key, value });
+            let mut decorators = Vec::new();
+            while self.peek_token_is(TokenType::At).is_ok() {
+                self.next_token()?;
+                self.next_token()?;
+                let decorator = self.parse_identifier()?;
+                decorators.push(decorator);
+            }
+
+            map.push(MapItem {
+                key,
+                value,
+                decorators,
+            });
             self.next_token()?; // moves to , or }
         }
         Ok(map)
@@ -239,7 +254,10 @@ impl Parser<'_> {
             Some(v) => v,
             None => {
                 return Err(self.build_error(
-                    ParseErrorReason::ExpectedToken((comparison_token.token_type().clone(), None)),
+                    ParseErrorReason::ExpectedToken {
+                        received: comparison_token.token_type().clone(),
+                        expected: None,
+                    },
                     &self.current_token,
                 ));
             }

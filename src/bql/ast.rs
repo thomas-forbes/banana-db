@@ -59,6 +59,7 @@ pub struct DeleteTable {
 pub struct MapItem {
     pub key: Identifier,
     pub value: Data,
+    pub decorators: Vec<Identifier>,
 }
 
 pub type Map = Vec<MapItem>;

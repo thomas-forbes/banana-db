@@ -4,7 +4,7 @@ use colored::Colorize;
 
 use crate::{bql::token::TokenPosition, utils};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum LexerErrorReason {
     ExpectedChar((char, Option<char>)),
     InvalidCharacter(char),
@@ -27,7 +27,13 @@ impl fmt::Display for LexerErrorReason {
     }
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for LexerErrorReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+#[derive(Clone)]
 pub struct LexerError {
     pub reason: LexerErrorReason,
     input: String,
@@ -70,3 +76,9 @@ impl fmt::Display for LexerError {
 }
 
 impl std::error::Error for LexerError {}
+
+impl fmt::Debug for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}

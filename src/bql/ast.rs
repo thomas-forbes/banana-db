@@ -59,6 +59,7 @@ pub struct DeleteTable {
 pub struct MapItem {
     pub key: Identifier,
     pub value: Data,
+    // TODO: make a custom type with validation?
     pub decorators: Vec<Identifier>,
 }
 

@@ -5,7 +5,8 @@ use colored::Colorize;
 
 use crate::bql::ast;
 use crate::database::storage::{self, Record, RecordType};
-use crate::database::table::{Cell, Column, Row, Rows, Table, TableError};
+use crate::database::table::axes::{Cell, Column, Row, Rows};
+use crate::database::table::{Table, TableError};
 use crate::utils;
 
 #[derive(Debug)]
@@ -154,7 +155,18 @@ impl<'a> Engine<'a> {
         let columns = new_table
             .fields
             .iter()
-            .map(|field| Column::new(field.key.value.clone(), field.value.clone()))
+            .map(|field| {
+                let mut decorators = field.decorators.iter();
+                let is_primary = decorators.any(|decorator| decorator.value == "primary");
+                let is_index = decorators.any(|decorator| decorator.value == "index");
+
+                Column::new(
+                    field.key.value.clone(),
+                    field.value.clone(),
+                    is_primary,
+                    is_index,
+                )
+            })
             .collect::<Vec<Column>>();
 
         let table = Table::new(new_table.identifier.value, columns);

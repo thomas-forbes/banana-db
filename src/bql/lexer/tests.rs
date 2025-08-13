@@ -26,6 +26,14 @@ fn integer() {
 }
 
 #[test]
+fn negative_integer() {
+    let mut lexer = Lexer::new("-123");
+    let token = lexer.next_token().unwrap();
+    assert_eq!(*token.token_type(), TokenType::Integer);
+    assert_eq!(token.literal(), "-123");
+}
+
+#[test]
 fn float() {
     let mut lexer = Lexer::new("3.14");
     let token = lexer.next_token().unwrap();

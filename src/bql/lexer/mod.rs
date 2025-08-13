@@ -165,6 +165,36 @@ impl Lexer<'_> {
                 start_index,
                 start_index,
             )),
+            '-' => {
+                if let Some(next_c) = self.peek() {
+                    if next_c.is_ascii_digit() {
+                        let literal = self.read_while_condition(|c| c.is_ascii_digit());
+                        let offset = literal.len() - 1 + 1;
+                        Ok(Token::new(
+                            TokenType::Integer,
+                            literal,
+                            start_index,
+                            start_index + offset,
+                        ))
+                    } else {
+                        Err(self.build_error(
+                            LexerErrorReason::InvalidCharacter(next_c),
+                            Some(TokenPosition {
+                                start_index,
+                                end_index: start_index + 1,
+                            }),
+                        ))
+                    }
+                } else {
+                    Err(self.build_error(
+                        LexerErrorReason::UnexpectedEOF,
+                        Some(TokenPosition {
+                            start_index,
+                            end_index: start_index + 1,
+                        }),
+                    ))
+                }
+            }
             c => {
                 if c.is_ascii_alphabetic() {
                     let literal = self.read_while_condition(|c| c.is_ascii_alphabetic());

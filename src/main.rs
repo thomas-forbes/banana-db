@@ -5,7 +5,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, default_value = "db.bin")]
+    #[arg(short, default_value = "database.db")]
     file_name: String,
     #[arg(short, long)]
     run_file: Option<String>,

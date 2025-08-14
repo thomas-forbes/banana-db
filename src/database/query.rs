@@ -152,24 +152,28 @@ impl<'a> Engine<'a> {
         {
             return Err(QueryError::TableAlreadyExists(new_table.identifier.value));
         }
-        let columns = new_table
-            .fields
-            .iter()
-            .map(|field| {
-                let mut decorators = field.decorators.iter();
-                let is_primary = decorators.any(|decorator| decorator.value == "primary");
-                let is_index = decorators.any(|decorator| decorator.value == "index");
 
-                Column::new(
-                    field.key.value.clone(),
-                    field.value.clone(),
-                    is_primary,
-                    is_index,
-                )
-            })
-            .collect::<Vec<Column>>();
+        let mut primary_key = None;
+        let mut columns = Vec::new();
+        for field in &new_table.fields {
+            let mut decorators = field.decorators.iter();
+            let is_primary = decorators.any(|decorator| decorator.value == "primary");
+            if is_primary {
+                if primary_key.is_some() {
+                    return Err(QueryError::TableError(TableError::PrimaryKeyViolation(
+                        "Multiple primary keys".to_string(),
+                    )));
+                }
+                primary_key = Some(field.key.value.clone());
+            }
 
-        let table = Table::new(new_table.identifier.value, columns);
+            columns.push(Column::new(field.key.value.clone(), field.value.clone()));
+        }
+        let primary_key = primary_key.ok_or(QueryError::TableError(
+            TableError::PrimaryKeyViolation("No primary key".to_string()),
+        ))?;
+
+        let table = Table::new(new_table.identifier.value, primary_key, columns);
         self.tables.push(table.clone());
         self.flush();
 

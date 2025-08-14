@@ -9,17 +9,15 @@ use crate::{database::data::Data, utils};
 pub struct Column {
     pub(super) name: String,
     pub(super) datatype: Data,
-    pub(super) index: Option<Vec<usize>>,
-    pub(super) primary: bool,
+    // pub(super) index: Option<Vec<usize>>,
 }
 
 impl Column {
-    pub fn new(name: String, datatype: Data, primary: bool, index: bool) -> Self {
+    pub fn new(name: String, datatype: Data) -> Self {
         Self {
             name,
             datatype,
-            primary,
-            index: if index { Some(Vec::new()) } else { None },
+            // index: if index { Some(Vec::new()) } else { None },
         }
     }
 }

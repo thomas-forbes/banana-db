@@ -7,7 +7,7 @@ fn database(c: &mut Criterion) {
     Database::new("bench.db").delete().unwrap();
 
     let mut db = Database::new("bench.db");
-    db.handle_query("new table users {id: Int, name: String};")
+    db.handle_query("new table users {id: Int @primary, name: String};")
         .unwrap();
     let i_cell = Cell::new(0);
     c.bench_function("insert", |b| {
@@ -19,7 +19,7 @@ fn database(c: &mut Criterion) {
         })
     });
     let i_cell = Cell::new(0);
-    c.bench_function("select", |b| {
+    c.bench_function("gimme", |b| {
         b.iter(|| {
             let i = i_cell.get();
             db.handle_query(&format!("gimme users where id == {};", i))
